@@ -16,8 +16,10 @@ import tkinter.font as tkfont
 from tkinter import ttk
 import time
 import threading
+import importlib
 
-import media_control
+import tab
+#import media_control
 
 import CONFIG #Import the configuration options
 
@@ -26,7 +28,18 @@ root = tk.Tk()
 root.title("PyMedia")
 root.geometry("800x480") #Set window size
 root.resizable(0,0) #Disallow resizing of window
-root.attributes("-fullscreen", True) #Make window full screen
+#root.attributes("-fullscreen", True) #Make window full screen
+
+
+def load_mods():
+	global MODULES
+	MODULES = []
+	global TABS
+	TABS = []
+	for index in range(len(CONFIG.LOAD_MODULES)):
+		importlib.import_module(CONFIG.LOAD_MODULES[index])
+		MODULES.append(CONFIG.LOAD_MODULES[index](root))
+		TABS.append(tab(root, 800/len(CONFIG.LOAD_MODULES), index, MODULES[index].displayName, root, MODULES[index]))
 
 #Define global resource images
 
@@ -50,9 +63,14 @@ repeat_icon = tk.PhotoImage(file="interface_res/repeat-line.gif").subsample(3,3)
 repeat_icon_single = tk.PhotoImage(file="interface_res/repeat-line-all.gif").subsample(3,3)
 repeat_icon_multi = tk.PhotoImage(file="interface_res/repeat-line-1.gif").subsample(3,3)
 
+#Settings quick actions icons
+shutdown_icon = tk.PhotoImage(file="interface_res/shut-down-line.gif").subsample(2,2)
+reboot_icon = tk.PhotoImage(file="interface_res/restart-line.gif").subsample(2,2)
+exit_icon = tk.PhotoImage(file="interface_res/close-line.gif").subsample(2,2)
+
 def menu_bar():
 
-	menu_font = tkfont.Font(size=30, weight="bold")
+	menu_font = tkfont.Font(size=25, weight="bold")
 
 	global file_button
 	file_button = tk.Button(root, text='File', font=menu_font, command=file_menu)
@@ -84,101 +102,6 @@ def file_menu_init():
 	wiptext.place(x=0, y=100)
 	
 
-def bluetooth_menu_init():
-	'''
-	Contains the actual layout and code for the bluetooth media control menu
-	'''
-	#Define a new frame to hold the layout information
-	global bluetooth_container
-	bluetooth_container = tk.Frame()
-	bluetooth_container.place(x=0, y=80, width=800, height=400) #Place under the menu bar with a size of 800x400
-	bluetooth_container.place_forget() #Hide the container
-
-	bluetooth_logo = tk.Label(bluetooth_container, image=bluetooth_icon).place(x=610, y=70) #Placeholder bluetooth icon
-
-	#Define a form for the bluetooth device mac address entry. This is only temporary until we can detect connections
-	global bluetooth_address_entry
-	bluetooth_address_entry = tk.Entry(bluetooth_container)
-	bluetooth_address_entry.place(x=130, y=10, width=100, height=20)
-
-	#Create a label for the bluetooth mac address entry
-	bluetooth_address_text = tk.Label(bluetooth_container, text="Bluetooth Mac Address")
-	bluetooth_address_text.place(x=0, y=10, height=20)
-
-	#Define the button for the bluetooth device entry
-	global bluetooth_address_set
-	bluetooth_address_set = tk.Button(bluetooth_container, text='Set', command=init_bt_device)
-	bluetooth_address_set.place(x=240, y=10, height=20)
-
-	#Set the icons for the song info
-	track_image = tk.Label(bluetooth_container, image=track_icon).place(x=5, y=60)
-	artist_image = tk.Label(bluetooth_container, image=artist_icon).place(x=5, y=120)
-	album_image = tk.Label(bluetooth_container, image=album_icon).place(x=5, y=180)
-
-	#Define the text boxes for the song info
-	track_info_font = tkfont.Font(size=24)
-	global track_name_text
-	track_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	track_name_text.place(x=50, y=60)
-	global artist_name_text
-	artist_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	artist_name_text.place(x=50, y=120)
-	global album_name_text
-	album_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	album_name_text.place(x=50, y=180)
-
-
-	#Define the player controls
-	global SHUFFLE_VALUE
-	global PLAYING
-	global LOOP_TYPE
-
-	SHUFFLE_VALUE = False
-	PLAYING = False
-	LOOP_TYPE = 0
-
-	global shuffle_button
-	shuffle_button = tk.Button(bluetooth_container, image=shuffle_icon, command=bt_shuffle_toggle)
-	shuffle_button.place(x=15, y=300)
-	
-	rewind_button = tk.Button(bluetooth_container, image=rewind_icon, command=bt_back).place(x=105, y=300)
-	
-	global playpause_button
-	playpause_button = tk.Button(bluetooth_container, image=play_icon, command=bt_playpause)
-	playpause_button.place(x=195, y=300)
-	
-	forward_button = tk.Button(bluetooth_container, image=forward_icon, command=bt_forward).place(x=285, y=300)
-	
-	global loop_button
-	loop_button = tk.Button(bluetooth_container, image=repeat_icon, command=bt_loop)
-	loop_button.place(x=375, y=300)
-
-	#Define the progress bar and track length
-	song_position_font = tkfont.Font(size=15)
-
-	global current_position
-	current_position = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-	current_position.place(x=15, y=250)
-	
-	global progress_bar
-	progress_bar = ttk.Progressbar(bluetooth_container, orient="horizontal", length=470, mode="determinate")
-	progress_bar.place(x=65, y=253)
-	
-	global track_length
-	track_length = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-	track_length.place(x=540, y=250)
-
-
-	#Create a container to hide the content of the player until a device is connected
-	global nc_container
-	nc_container = tk.Frame()
-	nc_container.place(x=0, y=130, width=800, height=350)
-
-	not_connected_font = tkfont.Font(size=40)
-	nc_text = tk.Label(nc_container, text="No Bluetooth Device Connected", font=not_connected_font)
-	nc_text.place(x=0, y=20)
-
-
 def phone_menu_init():
 	'''
 	Contains the actual layout and functionality of the phone menu
@@ -207,10 +130,24 @@ def settings_menu_init():
 	settings_container.place(x=0, y=80, width=800, height=400)
 	settings_container.place_forget()
 
-	#Define the WIP text
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(settings_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
+	#Create shutdown, reboot, and exit buttons
+	system_control_font = tkfont.Font(size=18)
+
+	shutdown_button = tk.Button(settings_container, image=shutdown_icon)
+	shutdown_button.place(x=10, y=10)
+	shutdown_label = tk.Label(settings_container, text="Shutdown", font=system_control_font).place(x=14, y=145)
+
+	reboot_button = tk.Button(settings_container, image=reboot_icon)
+	reboot_button.place(x=140, y=10)
+	reboot_label = tk.Label(settings_container, text="Reboot", font=system_control_font).place(x=161, y=145)
+
+	exit_button = tk.Button(settings_container, image=exit_icon)
+	exit_button.place(x=270, y=10)
+	exit_label = tk.Label(settings_container, text="Exit", font=system_control_font).place(x=310, y=145)
+
+
+
+	
 
 def phone_menu():
 	'''

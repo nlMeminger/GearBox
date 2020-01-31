@@ -1,11 +1,13 @@
 '''
-dbus media control module for bluetooth devices using the bluez service
+Tkinter GUI front-end for open source car stereo project
+Made by Red in 2019
+Greetings, from the ROC!
 
-Created for the car-stereo open source project
+https://github.com/nlMeminger/MagiCarp
 
-Made by Red Dragon in 2019
-https://www.reddragonte.ch/
-Hello from the ROC
+This code is licensed under the GNU General Public License
+For more information see the LICENSE file that was distributed with this code
+Or visit https://www.gnu.org/licenses/gpl-3.0.en.html
 '''
 
 import dbus
