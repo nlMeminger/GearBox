@@ -1,3 +1,5 @@
+#! /bin/python3
+
 '''
 Tkinter GUI front-end for open source car stereo project
 Made by Red in 2019
@@ -16,6 +18,9 @@ import tkinter.font as tkfont
 from tkinter import ttk
 import time
 import threading
+
+import subprocess
+import shlex
 
 import media_control
 
@@ -97,18 +102,18 @@ def bluetooth_menu_init():
 	bluetooth_logo = tk.Label(bluetooth_container, image=bluetooth_icon).place(x=610, y=70) #Placeholder bluetooth icon
 
 	#Define a form for the bluetooth device mac address entry. This is only temporary until we can detect connections
-	global bluetooth_address_entry
-	bluetooth_address_entry = tk.Entry(bluetooth_container)
-	bluetooth_address_entry.place(x=130, y=10, width=100, height=20)
+	#global bluetooth_address_entry
+	#bluetooth_address_entry = tk.Entry(bluetooth_container)
+	#bluetooth_address_entry.place(x=130, y=10, width=100, height=20)
 
 	#Create a label for the bluetooth mac address entry
-	bluetooth_address_text = tk.Label(bluetooth_container, text="Bluetooth Mac Address")
-	bluetooth_address_text.place(x=0, y=10, height=20)
+	#bluetooth_address_text = tk.Label(bluetooth_container, text="Bluetooth Mac Address")
+	#bluetooth_address_text.place(x=0, y=10, height=20)
 
 	#Define the button for the bluetooth device entry
-	global bluetooth_address_set
-	bluetooth_address_set = tk.Button(bluetooth_container, text='Set', command=init_bt_device)
-	bluetooth_address_set.place(x=240, y=10, height=20)
+	#global bluetooth_address_set
+	#bluetooth_address_set = tk.Button(bluetooth_container, text='Set', command=init_bt_device)
+	#bluetooth_address_set.place(x=240, y=10, height=20)
 
 	#Set the icons for the song info
 	track_image = tk.Label(bluetooth_container, image=track_icon).place(x=5, y=60)
@@ -193,7 +198,7 @@ def phone_menu_init():
 
 	#WIP Text
 	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(phone_container, text="Work in progress", font=wipfont)
+	wiptext = tk.Label(phone_container, text="Nearby Devices", font=wipfont)
 	wiptext.place(x=0, y=100)
 
 def settings_menu_init():
@@ -329,6 +334,21 @@ def file_menu():
 	global file_container
 	file_container.place(x=0, y=80, width=800, height=400)
 
+def get_connected_mac():
+	command = 'hcitool con'
+	command = shlex.quote(command)
+	command = shlex.split(command)
+	process = subprocess.Popen(
+	command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+	)
+	stdout, stderr = process.communicate()
+	stdout = stdout.decode().strip()
+	stderr = stderr.decode().strip()
+	status = process.returncode
+	stdout = stdout.split()
+	stdout = stdout[3].strip()	
+
+	return stdout
 
 def init_bt_device():
 	'''
@@ -336,10 +356,10 @@ def init_bt_device():
 	'''	
 
 	global bluetooth_address_set
-	bluetooth_address_set.config(state="disabled")
+	#bluetooth_address_set.config(state="disabled")
 
 	global BT_DEVICE
-	BT_DEVICE = media_control.mediaControl(bluetooth_address_entry.get()) #Create the bluetooth device
+	BT_DEVICE = media_control.mediaControl(get_connected_mac()) #Create the bluetooth device
 
 	global nc_container
 	nc_container.place_forget() #Hide the "not connected" information
@@ -580,6 +600,7 @@ def textslice(text):
 
 def main():
 
+	
 	menu_bar() #Start menu bar
 
 
@@ -603,8 +624,13 @@ def main():
 	elif CONFIG.DEFAULT_TAB == 4: #Settings menu
 		settings_menu()
 
+	init_bt_device()
+
 	#Begin displaying the window	
 	root.mainloop()
 
 if __name__ == "__main__":
-	main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit(0)
