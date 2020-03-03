@@ -30,6 +30,7 @@ import CONFIG #Import the configuration options
 class Gui:
 
 	sysHost = sh.SystemHost()
+	device = None
 
 	#Define Window Attributes
 	rootWindow = None
@@ -74,13 +75,21 @@ class Gui:
 	repeat_icon_single = None
 	repeat_icon_multi = None
 
-	#menu buttons
+	#buttons
 	file_button = None
 	bluetooth_button = None
 	phone_button = None
 	settings_button = None
 	menu_button_height = 80
 	menu_button_width = 200
+	shuffle_button = None
+	rewind_button = None
+	playpause_button = None
+	forward_button = None
+	loop_button = None
+	current_position = None
+	progress_bar = None
+	track_length = None
 
 	#menu containers
 	file_container = None
@@ -88,7 +97,14 @@ class Gui:
 	phone_container = None
 	settings_container = None
 
-	def __init__(self):
+	#define playback attributes
+	SHUFFLE_VALUE = False
+	PLAYING = False
+	LOOP_TYPE = 0
+
+
+	def __init__(self, device = None):
+		self.device = device
 		pass
 
 	def exit_gui():
@@ -175,82 +191,121 @@ class Gui:
 
 			self.bluetooth_logo = tk.Label(self.bluetooth_container, image=self.bluetooth_icon).place(x=610, y=70) #Placeholder bluetooth icon
 
-			#Create a label for the bluetooth mac address entry
+			#Create a label for the device name
 			labelText = ''
 
 			if self.sysHost.checkForConnectedDevices():
-				labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
+				labelText = 'Connected to: {}'.format(self.device.deviceName)
 			else:
 				#Define the button for the bluetooth device entry
-				global bluetooth_address_set
-				bluetooth_address_set = tk.Button(this.bluetooth_container, text='Connect', command=init_bt_device)
-				bluetooth_address_set.place(x=240, y=10, height=20)
-
-
+				connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=init_bt_device)
+				connectDevice.place(x=240, y=10, height=20)
 				labelText = 'No Connected Devices'
 
-			bluetooth_address_text = tk.Label(bluetooth_container, text=labelText)
+			bluetooth_address_text = tk.Label(self.bluetooth_container, text=labelText)
 			bluetooth_address_text.place(x=0, y=10, height=50)
 
 			
 
 			#Set the icons for the song info
-			track_image = tk.Label(bluetooth_container, image=track_icon).place(x=5, y=60)
-			artist_image = tk.Label(bluetooth_container, image=artist_icon).place(x=5, y=120)
-			album_image = tk.Label(bluetooth_container, image=album_icon).place(x=5, y=180)
+			track_icon = tk.Label(self.bluetooth_container, image=self.trackImage).place(x=5, y=60)
+			artist_icom = tk.Label(self.bluetooth_container, image=self.artistImage).place(x=5, y=120)
+			album_icon = tk.Label(self.bluetooth_container, image=self.albumImage).place(x=5, y=180)
 
 			#Define the text boxes for the song info
-			track_info_font = tkfont.Font(size=24)
-			global track_name_text
-			track_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-			track_name_text.place(x=50, y=60)
-			global artist_name_text
-			artist_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-			artist_name_text.place(x=50, y=120)
-			global album_name_text
-			album_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-			album_name_text.place(x=50, y=180)
+			trackInfoFont = tkfont.Font(size=24)
+			trackNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+			trackNameText.place(x=50, y=60)
+			
+			artistNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+			artistNameText.place(x=50, y=120)
+			
+			albumNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+			albumNameText.place(x=50, y=180)
 
 
-			#Define the player controls
-			global SHUFFLE_VALUE
-			global PLAYING
-			global LOOP_TYPE
 
-			SHUFFLE_VALUE = False
-			PLAYING = False
-			LOOP_TYPE = 0
-
-			global shuffle_button
-			shuffle_button = tk.Button(bluetooth_container, image=shuffle_icon, command=bt_shuffle_toggle)
-			shuffle_button.place(x=15, y=300)
+			self.shuffle_button = tk.Button(self.bluetooth_container, image=self.shuffle_icon, command=bt_shuffle_toggle)
+			self.shuffle_button.place(x=15, y=300)
 			
-			rewind_button = tk.Button(bluetooth_container, image=rewind_icon, command=bt_back).place(x=105, y=300)
+			self.rewind_button = tk.Button(self.bluetooth_container, image=self.rewind_icon, command=bt_back)
+			self.rewind_button.place(x=105, y=300)
 			
-			global playpause_button
-			playpause_button = tk.Button(bluetooth_container, image=play_icon, command=bt_playpause)
-			playpause_button.place(x=195, y=300)
+			self.playpause_button = tk.Button(self.bluetooth_container, image=self.play_icon, command=bt_playpause)
+			self.playpause_button.place(x=195, y=300)
 			
-			forward_button = tk.Button(bluetooth_container, image=forward_icon, command=bt_forward).place(x=285, y=300)
+			self.forward_button = tk.Button(self.bluetooth_container, image=self.forward_icon, command=bt_forward)
+			self.forward_button.place(x=285, y=300)
 			
-			global loop_button
-			loop_button = tk.Button(bluetooth_container, image=repeat_icon, command=bt_loop)
-			loop_button.place(x=375, y=300)
+			self.loop_button = tk.Button(self.bluetooth_container, image=self.repeat_icon, command=bt_loop)
+			self.loop_button.place(x=375, y=300)
 
 			#Define the progress bar and track length
 			song_position_font = tkfont.Font(size=15)
 
-			global current_position
-			current_position = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-			current_position.place(x=15, y=250)
+			self.current_position = tk.Label(self.bluetooth_container, text="0:00", font=song_position_font)
+			self.current_position.place(x=15, y=250)
 			
-			global progress_bar
-			progress_bar = ttk.Progressbar(bluetooth_container, orient="horizontal", length=470, mode="determinate")
-			progress_bar.place(x=65, y=253)
+			self.progress_bar = ttk.Progressbar(self.bluetooth_container, orient="horizontal", length=470, mode="determinate")
+			self.progress_bar.place(x=65, y=253)
 			
-			global track_length
-			track_length = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-			track_length.place(x=540, y=250)
+			self.track_length = tk.Label(self.bluetooth_container, text="0:00", font=song_position_font)
+			self.track_length.place(x=540, y=250)
+
+		def phone_menu_init():
+			'''
+			Contains the actual layout and functionality of the phone menu
+			'''
+
+			#Define a container to hold the items in the window
+			self.phone_container = tk.Frame()
+			self.phone_container.place(x=0, y=80, width=800, height=400)
+			self.phone_container.place_forget()
+
+
+			#WIP Text
+			wipfont = tkfont.Font(size=50)
+			wiptext = tk.Label(self.phone_container, text="Nearby Devices", font=wipfont)
+			wiptext.place(x=0, y=100)
+
+		
+		def settings_menu_init():
+			'''
+			Contains the layout information and functionality of the settings menu
+			'''
+
+			#Create a new frame to hold section content
+			self.settings_container = tk.Frame()
+			self.settings_container.place(x=0, y=80, width=800, height=400)
+			self.settings_container.place_forget()
+
+			#Define the WIP text
+			wipfont = tkfont.Font(size=50)
+			wiptext = tk.Label(self.settings_container, text="Work in progress", font=wipfont)
+			wiptext.place(x=0, y=100)
+
+		def switchMenu(menuName = ''):
+			menus = {
+				'file':[self.file_button, self.file_container], 
+				'phone': [self.phone_button, self.phone_container], 
+				'bluetooth': [self.bluetooth_button, self.bluetooth_container] , 
+				'settings': [self.settings_button, self. settings_container],
+				}
+			
+			selectedMenu = menus[menuName]
+			
+			if menuName.lower() in menus:
+				menus.pop(menuName)
+			elif menuName.lower() not in menus:
+				print('No such menu name')
+
+			for menu in menus:
+				menus[menu][0].config(state='normal')
+				menus[menu][1].place_forget()
+			
+			selectedMenu[0].config(state='disabled')
+			selectedMenu[1].place(x=0, y=80, width=800, height=400)
+ 
 
 
 
@@ -279,165 +334,10 @@ class Gui:
 
 
 
-	#Create a container to hide the content of the player until a device is connected
-	#global nc_container
-	#nc_container = tk.Frame()
-	#nc_container.place(x=0, y=130, width=800, height=350)
-
-	#not_connected_font = tkfont.Font(size=40)
-	#nc_text = tk.Label(nc_container, text="No Bluetooth Device Connected", font=not_connected_font)
-	#nc_text.place(x=0, y=20)
 
 
-def phone_menu_init():
-	'''
-	Contains the actual layout and functionality of the phone menu
-	'''
-
-	#Define a container to hold the items in the window
-	global phone_container
-	phone_container = tk.Frame()
-	phone_container.place(x=0, y=80, width=800, height=400)
-	phone_container.place_forget()
 
 
-	#WIP Text
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(phone_container, text="Nearby Devices", font=wipfont)
-	wiptext.place(x=0, y=100)
-
-def settings_menu_init():
-	'''
-	Contains the layout information and functionality of the settings menu
-	'''
-
-	#Create a new frame to hold section content
-	global settings_container
-	settings_container = tk.Frame()
-	settings_container.place(x=0, y=80, width=800, height=400)
-	settings_container.place_forget()
-
-	#Define the WIP text
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(settings_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
-
-def phone_menu():
-	'''
-	Switch to the phone menu
-	'''
-
-	#Disable currently selected button
-	global phone_button
-	phone_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global file_button
-	file_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global settings_container
-	settings_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show phone tab
-	global phone_container
-	phone_container.place(x=0, y=80, width=800, height=400)
-
-def settings_menu():
-	'''
-	Switch to the settings meny
-	'''
-	#Disable currently selected button
-	global settings_button
-	settings_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global file_button
-	file_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show settings tab
-	global settings_container
-	settings_container.place(x=0, y=80, width=800, height=400)
-
-def bluetooth_menu():
-	'''
-	Show the bluetooth menu
-	'''
-
-
-	#Disable the currently selected button
-	global bluetooth_button
-	bluetooth_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global file_button
-	file_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global settings_contianer
-	settings_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-
-	#Show bluetooth tab
-	global bluetooth_container
-
-	bluetooth_container.place(x=0, y=80, width=800, height=400)
-
-def file_menu():
-	'''
-	Show the file player menu
-	'''
-
-	#Disable currently selected button
-	global file_button
-	file_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global settings_container
-	settings_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show file tab
-	global file_container
-	file_container.place(x=0, y=80, width=800, height=400)
 
 def get_connected_mac():
 	command = 'hcitool con'
