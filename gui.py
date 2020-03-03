@@ -12,7 +12,7 @@ For more information see the LICENSE file that was distributed with this code
 Or visit https://www.gnu.org/licenses/gpl-3.0.en.html
 '''
 
-
+from tkinter import *
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk
@@ -55,9 +55,67 @@ repeat_icon = tk.PhotoImage(file="interface_res/repeat-line.gif").subsample(3,3)
 repeat_icon_single = tk.PhotoImage(file="interface_res/repeat-line-all.gif").subsample(3,3)
 repeat_icon_multi = tk.PhotoImage(file="interface_res/repeat-line-1.gif").subsample(3,3)
 
+def exit_gui():
+	root.destroy()
+	exit()
+	raise Exception
+def command_run(command):
+	command = shlex.quote(command)
+	command = shlex.split(command)
+	process = subprocess.Popen(
+	command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+	)
+	stdout, stderr = process.communicate()
+	stdout_ = stdout.decode().strip()
+	stderr_ = stderr.decode().strip()
+	status_ = process.returncode
+
+	results = {'stdout': stdout_, 'stderr': stderr_, 'status': status_}
+
+	return results
+
+def adjust_brightness(brightness):
+
+	brightness = int(brightness) / 100
+
+	#print(brightness)
+
+	command_run(' xrandr --output eDP-1 --brightness {}'.format(brightness))
+	
+	#file = open("/sys/class/backlight/rpi_backlight/brightness","w")
+	#file.write(str(brightness))
+	#file.close()
+
+def get_curr_brightness():
+	#results = command_run('cat /sys/class/backlight/rpi_backlight/brightness')
+	#currBrightness = int(results['stdout']) / 2.55
+	
+	currBrightness = command_run('xrandr --verbose |grep eDP-1 -A 5 | grep Brightness')
+	currBrightness = float(currBrightness['stdout'].split()[1].strip()) * 100
+
+	return currBrightness
+
+
+def adjust_volume(volume_level):
+	volume_level = int(volume_level) * 1000
+	command_run('pactl set-sink-volume @DEFAULT_SINK@ {}'.format(volume_level))
+
+def check_for_connected_devices():
+	results = command_run('hcitool con')
+	
+	if '>' not in results['stdout']:
+		return False
+	else:
+		return True
+
+def get_connected_device_name():
+	results = command_run('hcitool info {} | grep Name'.format(get_connected_mac()))
+	name = results['stdout'].replace('Device Name: ', '')
+	return name
+
 def menu_bar():
 
-	menu_font = tkfont.Font(size=30, weight="bold")
+	menu_font = tkfont.Font(size=20, weight="bold")
 
 	global file_button
 	file_button = tk.Button(root, text='File', font=menu_font, command=file_menu)
@@ -84,9 +142,25 @@ def file_menu_init():
 	file_container.place(x=0, y=80, width=800, height=400)
 	file_container.place_forget()
 
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(file_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
+	exitButton = tk.Button(file_container, text='Exit', command=exit_gui)
+	exitButton.place(x=130, y=10, width=100, height=20)
+
+	#wipfont = tkfont.Font(size=50)
+	#wiptext = tk.Label(file_container, text="Work in progress", font=wipfont)
+	#wiptext.place(x=0, y=100)
+
+
+	brightness_slider = tk.Scale(file_container, command=adjust_brightness, from_=5, label='Brightness', orient=tk.HORIZONTAL, to=100,)
+	brightness_slider.set(get_curr_brightness())
+	brightness_slider.place(x=130, y=50)
+	
+	volume_slider = tk.Scale(file_container, command=adjust_volume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=25,)
+	volume_slider.place(x=130, y=150)
+
+	#master = Tk()
+	#w = Scale(master, from_=0, to=42)
+	#w.pack()
+	#w = Scale(master, from_=0, to=200, orient=HORIZONTAL)
 	
 
 def bluetooth_menu_init():
@@ -107,13 +181,23 @@ def bluetooth_menu_init():
 	#bluetooth_address_entry.place(x=130, y=10, width=100, height=20)
 
 	#Create a label for the bluetooth mac address entry
-	#bluetooth_address_text = tk.Label(bluetooth_container, text="Bluetooth Mac Address")
-	#bluetooth_address_text.place(x=0, y=10, height=20)
+	labelText = ''
 
-	#Define the button for the bluetooth device entry
-	#global bluetooth_address_set
-	#bluetooth_address_set = tk.Button(bluetooth_container, text='Set', command=init_bt_device)
-	#bluetooth_address_set.place(x=240, y=10, height=20)
+	if check_for_connected_devices():
+		labelText = 'Connected to: ' + get_connected_device_name()
+	else:
+		#Define the button for the bluetooth device entry
+		global bluetooth_address_set
+		bluetooth_address_set = tk.Button(bluetooth_container, text='Connect', command=init_bt_device)
+		bluetooth_address_set.place(x=240, y=10, height=20)
+
+
+		labelText = 'No Connected Devices'
+
+	bluetooth_address_text = tk.Label(bluetooth_container, text=labelText)
+	bluetooth_address_text.place(x=0, y=10, height=50)
+
+	
 
 	#Set the icons for the song info
 	track_image = tk.Label(bluetooth_container, image=track_icon).place(x=5, y=60)
@@ -175,13 +259,13 @@ def bluetooth_menu_init():
 
 
 	#Create a container to hide the content of the player until a device is connected
-	global nc_container
-	nc_container = tk.Frame()
-	nc_container.place(x=0, y=130, width=800, height=350)
+	#global nc_container
+	#nc_container = tk.Frame()
+	#nc_container.place(x=0, y=130, width=800, height=350)
 
-	not_connected_font = tkfont.Font(size=40)
-	nc_text = tk.Label(nc_container, text="No Bluetooth Device Connected", font=not_connected_font)
-	nc_text.place(x=0, y=20)
+	#not_connected_font = tkfont.Font(size=40)
+	#nc_text = tk.Label(nc_container, text="No Bluetooth Device Connected", font=not_connected_font)
+	#nc_text.place(x=0, y=20)
 
 
 def phone_menu_init():
@@ -336,18 +420,12 @@ def file_menu():
 
 def get_connected_mac():
 	command = 'hcitool con'
-	command = shlex.quote(command)
-	command = shlex.split(command)
-	process = subprocess.Popen(
-	command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
-	)
-	stdout, stderr = process.communicate()
-	stdout = stdout.decode().strip()
-	stderr = stderr.decode().strip()
-	status = process.returncode
-	stdout = stdout.split()
-	stdout = stdout[3].strip()	
+	
+	results = command_run(command)
 
+	stdout = results['stdout'].split()
+	print(stdout)
+	stdout = stdout[3].strip()	
 	return stdout
 
 def init_bt_device():
@@ -359,13 +437,13 @@ def init_bt_device():
 	#bluetooth_address_set.config(state="disabled")
 
 	global BT_DEVICE
-	BT_DEVICE = media_control.mediaControl(get_connected_mac()) #Create the bluetooth device
-
-	global nc_container
-	nc_container.place_forget() #Hide the "not connected" information
+	if check_for_connected_devices():
+		BT_DEVICE = media_control.mediaControl(get_connected_mac()) #Create the bluetooth device
 
 	#Start the track info thread
 	threading.Thread(target=bt_song_info_thread).start()
+
+	root.update()
 
 def bt_shuffle_toggle():
 	'''
