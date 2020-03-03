@@ -1,5 +1,6 @@
 '''
-Tkinter GUI front-end for open source car stereo project
+media-control
+Module to control bluetooth devices through dbus using bluez
 Made by Red in 2019
 Greetings, from the ROC!
 
