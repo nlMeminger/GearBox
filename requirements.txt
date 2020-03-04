@@ -1,2 +1,6 @@
 pybluez
 python-dbus
+flask
+redis
+gevent
+gunicorn
