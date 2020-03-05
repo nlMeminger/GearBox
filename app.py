@@ -14,6 +14,10 @@ Or visit https://www.gnu.org/licenses/gpl-3.0.en.html
 import flask
 from flask import render_template
 import redis
+import os
+
+import CONFIG
+#import tabs
 
 
 app = flask.Flask(__name__) #init flask
@@ -31,6 +35,17 @@ def event_stream():
 def sever_msg(data):
 	#Send a string to the server_msg stream
 	red.publish('server_msg', u'%s' % (data))
+
+
+@app.route("/")
+def index():
+	#Render the index page
+	return render_template("index.html")
+
+@app.route('/favicon.ico')
+def favicon():
+	#Send the favicon because why not
+    return flask.send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/ico')
 
 
 @app.route("/stream")
