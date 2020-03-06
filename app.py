@@ -31,7 +31,7 @@ def event_stream():
 		#print(message) #Debug
 		yield 'data: %s\n\n' % message['data'] #return a properly formatted server side event
 
- 
+
 def sever_msg(data):
 	#Send a string to the server_msg stream
 	red.publish('server_msg', u'%s' % (data))
@@ -41,6 +41,7 @@ def sever_msg(data):
 def index():
 	#Render the index page
 	return render_template("index.html")
+
 
 @app.route('/favicon.ico')
 def favicon():
@@ -63,4 +64,6 @@ def set_response_headers(response):
 	response.headers['Expires'] = '0'
 	return response
 
-app.run(host='0.0.0.0', port=8080) #Run the app on port 80
+
+if __name__ == "__main__":
+	app.run(host='0.0.0.0', port=8080) #Run the app on port 80
