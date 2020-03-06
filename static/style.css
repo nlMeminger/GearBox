@@ -1,5 +1,3 @@
-html {
-	position: absolute;
-	max-width: 800px;
-	max-height: 480px;
+body {
+	background-color: #000000;
 }
