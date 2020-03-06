@@ -17,7 +17,7 @@ import redis
 import os
 
 import CONFIG
-#import tabs
+import tabs
 
 
 app = flask.Flask(__name__) #init flask
