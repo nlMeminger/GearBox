@@ -15,12 +15,12 @@ class BtDevice:
     def connectToPlayer(self):
         if self.macAddress == '':
             print('No mac address specified')
-        elif (':' in self.macAddress) and (self.bluezPlayer is not None):
+        elif (':' in self.macAddress) and (self.bluezPlayer is None):
             try:
                 self.bluezPlayer = mc.mediaControl(self.macAddress)
             except Exception as e:
                 print(e)
-        elif self.bluezPlayer is None:
+        elif self.bluezPlayer is not None:
             print('A bluez player has already been established')
         else:
             print('Something went wrong trying to connect to the bluetooth player')

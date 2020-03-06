@@ -29,7 +29,7 @@ import CONFIG #Import the configuration options
 
 class Gui:
 
-	sysHost = sh.SystemHost()
+	sysHost = None
 	device = None
 
 	#Define Window Attributes
@@ -51,11 +51,20 @@ class Gui:
 	artistImage = "interface_res/user-fill.gif"
 	trackImage = "interface_res/music-2-fill.gif"
 	albumImage = "interface_res/album-fill.gif"
-
+	volumeUpImage = 'interface_res/volume-up-fill.gif'
+	volumeDownImage = 'interface_res/volume-down-fill.gif'
+	brightnessUpImage = 'interface_res/brightness-up.png'
+	brightnessDownImage = 'interface_res/brightness-down.png'
 
 	#Root Window
 	root = None
 	
+	#system control icons
+	brightness_up_icon = None
+	brightness_down_icon = None
+	volume_up_icon = None
+	volume_down_icon = None
+
 	#Bluetooth Icon
 	bluetooth_icon = None
 
@@ -101,24 +110,26 @@ class Gui:
 	SHUFFLE_VALUE = False
 	PLAYING = False
 	LOOP_TYPE = 0
+	INITSTART =True
 
 	artistNameText = None
 	albumNameText = None
 	trackNameText = None
 	currentPosition = None
 
-	def __init__(self, device = None):
+	def __init__(self, device, sysHost):
 		self.device = device
-		
+		self.sysHost = sysHost
 		self.defineWindow()
 		
-		self.menu_bar() #Start menu bar
+		 #Start menu bar
 		#Initialize menus	
 		self.phone_menu_init()
 		self.settings_menu_init()
 		self.file_menu_init()
 		self.bluetooth_menu_init()
-
+		self.menu_bar()		
+		self.INITSTART = False
 
 		#Find which tab to start on
 		if CONFIG.DEFAULT_TAB == 1: #File menu
@@ -132,9 +143,10 @@ class Gui:
 
 		elif CONFIG.DEFAULT_TAB == 4: #Settings menu
 			self.switchMenu('settings')
-
 		
 		self.init_bt_device()
+
+				
 
 		#Begin displaying the window	
 		self.root.mainloop()
@@ -156,7 +168,7 @@ class Gui:
 
 		#Track info icons
 		self.artist_icon = tk.PhotoImage(file=self.artistImage).subsample(6,6)
-		self.track_icon = tk.PhotoImage(file=self.trackImage).subsample(6,6)
+		self.track_icon  = tk.PhotoImage(file=self.trackImage).subsample(6,6)
 		self.album_icon = tk.PhotoImage(file=self.albumImage).subsample(6,6)
 
 		#Player control icons
@@ -170,22 +182,27 @@ class Gui:
 		self.repeat_icon_single = tk.PhotoImage(file=self.repeatSingleImage).subsample(3,3)
 		self.repeat_icon_multi = tk.PhotoImage(file=self.repeatMultiImage).subsample(3,3)#Define TK root object and set properties
 		
+		#system control icons
+		self.brightness_up_icon = tk.PhotoImage(file=self.brightnessUpImage).subsample(6,6)
+		self.brightness_down_icon = tk.PhotoImage(file=self.brightnessDownImage).subsample(6,6)
+		self.volume_up_icon = tk.PhotoImage(file=self.volumeUpImage).subsample(6,6)
+		self.volume_down_icon = tk.PhotoImage(file=self.volumeDownImage).subsample(6,6)
 
 	def menu_bar(self):
+
 		menu_font = tkfont.Font(size=20, weight="bold")
-
-		self.file_button = tk.Button(self.root, text='File', font=menu_font, command=self.switchMenu('file'))
+		
+		self.file_button = tk.Button(self.root, text='File', font=menu_font, command= lambda: self.switchMenu('file'))
 		self.file_button.place(x=0, y=0, width=self.menu_button_width, height=self.menu_button_height)
-
-		self.bluetooth_button = tk.Button(self.root, text="Bluetooth", font=menu_font, command=self.switchMenu('bluetooth'))
+		
+		self.bluetooth_button = tk.Button(self.root, text="Bluetooth", font=menu_font, command= lambda: self.switchMenu('bluetooth'))
 		self.bluetooth_button.place(x=200, y=0, width=self.menu_button_width, height=self.menu_button_height)
-
-		self.phone_button = tk.Button(self.root, text="Phone", font=menu_font, command=self.switchMenu('phone'))
+		
+		self.phone_button = tk.Button(self.root, text="Phone", font=menu_font, command= lambda: self.switchMenu('phone'))
 		self.phone_button.place(x=400, y=0, width=self.menu_button_width, height=self.menu_button_height)
-
-		self.settings_button = tk.Button(self.root, text="Settings", font=menu_font, command=self.switchMenu('settings'))
+		
+		self.settings_button = tk.Button(self.root, text="Settings", font=menu_font, command= lambda: self.switchMenu('settings'))
 		self.settings_button.place(x=600, y=0, width=self.menu_button_width, height=self.menu_button_height)
-
 	
 	def file_menu_init(self):
 		exitButtonWidth = 100
@@ -203,15 +220,29 @@ class Gui:
 		exitButton.place(x=exitButtonXpos, y=exitButtonYpos, width=exitButtonWidth, height=exitButtonHeight)
 
 		#Create a slider to control the screen brightness
-		brightness_slider = tk.Scale(self.file_container, command=self.sysHost.setBrightness, from_=5, label='Brightness', orient=tk.HORIZONTAL, to=100,)
+		brightness_slider = tk.Scale(self.file_container)
 		currentBrightness = self.sysHost.getCurrBrightness()
+		brightness_slider = tk.Scale(self.file_container, length=200, command=self.sysHost.setBrightness, from_=5, label='Brightness', orient=tk.HORIZONTAL, to=100,)
 		brightness_slider.set(currentBrightness)
-		brightness_slider.place(x=130, y=50)
+		brightness_slider.place(x=130, y=60)
 		
-		#Create a slider to conteol the system volume
-		volume_slider = tk.Scale(self.file_container, command=self.sysHost.setVolume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=25,)
+		brightnessUpButton = tk.Button(self.file_container, command= lambda: self.brightnessUp(brightness_slider), image=self.brightness_up_icon)
+		brightnessDownButton = tk.Button(self.file_container, command= lambda: self.brightnessDown(brightness_slider), image=self.brightness_down_icon)
+		brightnessUpButton.place(x=50, y=30)
+		brightnessDownButton.place(x=50, y=90)
+		
+		#Create a slider to control the system volume
+		volume_slider = tk.Scale(self.file_container)
+		currentVolume = self.sysHost.getCurrVolume()
+		volume_slider = tk.Scale(self.file_container, length=200, command=self.sysHost.setVolume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=100,)
+		volume_slider.set(currentVolume)
+
 		volume_slider.place(x=130, y=150)
 		
+		volumeUpButton = tk.Button(self.file_container, command= lambda: self.volumeUp(volume_slider), image=self.volume_up_icon)
+		volumeDownButton = tk.Button(self.file_container, command= lambda: self.volumeDown(volume_slider), image=self.volume_down_icon)
+		volumeUpButton.place(x=50, y=140)
+		volumeDownButton.place(x=50, y=190)
 
 	def bluetooth_menu_init(self):
 		'''
@@ -242,11 +273,12 @@ class Gui:
 		
 
 		#Set the icons for the song info
-		self.track_icon = tk.Label(self.bluetooth_container, image=self.trackImage)
-		self.track_icon.place(x=5, y=60)
-		self.artist_icon = tk.Label(self.bluetooth_container, image=self.artistImage)
+		self.artist_icon = tk.Label(self.bluetooth_container, image=self.artist_icon)
 		self.artist_icon.place(x=5, y=120)
-		self.album_icon = tk.Label(self.bluetooth_container, image=self.albumImage)
+		self.track_icon = tk.Label(self.bluetooth_container, image=self.track_icon)
+		self.track_icon.place(x=5, y=60)
+		
+		self.album_icon = tk.Label(self.bluetooth_container, image=self.album_icon)
 		self.album_icon.place(x=5, y=180)
 
 		#Define the text boxes for the song info
@@ -262,19 +294,19 @@ class Gui:
 
 
 
-		self.shuffle_button = tk.Button(self.bluetooth_container, image=self.shuffle_icon, command=bt_shuffle_toggle)
+		self.shuffle_button = tk.Button(self.bluetooth_container, image=self.shuffle_icon, command=self.bt_shuffle_toggle)
 		self.shuffle_button.place(x=15, y=300)
 		
-		self.rewind_button = tk.Button(self.bluetooth_container, image=self.rewind_icon, command=bt_back)
+		self.rewind_button = tk.Button(self.bluetooth_container, image=self.rewind_icon, command=self.bt_back)
 		self.rewind_button.place(x=105, y=300)
 		
-		self.playpause_button = tk.Button(self.bluetooth_container, image=self.play_icon, command=bt_playpause)
+		self.playpause_button = tk.Button(self.bluetooth_container, image=self.play_icon, command=self.bt_playpause)
 		self.playpause_button.place(x=195, y=300)
 		
-		self.forward_button = tk.Button(self.bluetooth_container, image=self.forward_icon, command=bt_forward)
+		self.forward_button = tk.Button(self.bluetooth_container, image=self.forward_icon, command=self.bt_forward)
 		self.forward_button.place(x=285, y=300)
 		
-		self.loop_button = tk.Button(self.bluetooth_container, image=self.repeat_icon, command=bt_loop)
+		self.loop_button = tk.Button(self.bluetooth_container, image=self.repeat_icon, command=self.bt_loop)
 		self.loop_button.place(x=375, y=300)
 
 		#Define the progress bar and track length
@@ -321,27 +353,59 @@ class Gui:
 		wiptext = tk.Label(self.settings_container, text="Work in progress", font=wipfont)
 		wiptext.place(x=0, y=100)
 
-	def switchMenu(self, menuName = ''):
-		menus = {
-			'file':[self.file_button, self.file_container], 
-			'phone': [self.phone_button, self.phone_container], 
-			'bluetooth': [self.bluetooth_button, self.bluetooth_container] , 
-			'settings': [self.settings_button, self. settings_container],
-			}
-		
-		selectedMenu = menus[menuName]
-		
-		if menuName.lower() in menus:
-			menus.pop(menuName)
-		elif menuName.lower() not in menus:
-			print('No such menu name')
+	def brightnessUp(self, slider):
+		curr = int(self.sysHost.currBrightness)
+		new = curr + 1
+		if new > 100:
+			return
+		self.sysHost.setBrightness(new)
+		slider.set(new)
 
-		for menu in menus:
-			menus[menu][0].config(state='normal')
-			menus[menu][1].place_forget()
-		
-		selectedMenu[0].config(state='disabled')
-		selectedMenu[1].place(x=0, y=80, width=800, height=400)
+	def brightnessDown(self, slider):
+		curr = int(self.sysHost.currBrightness)
+		new = curr - 1
+		if new < 5:
+			return
+		self.sysHost.setBrightness(new)
+		slider.set(new)
+
+	def volumeUp(self, slider):
+		curr = self.sysHost.currVolume
+		new = curr + 1
+		if new < 0:
+			return
+		self.sysHost.setVolume(new)
+		slider.set(new)
+	
+	def volumeDown(self, slider):
+		curr = self.sysHost.currVolume
+		new = curr - 1
+		if new > 75: return
+		self.sysHost.setVolume(new)
+		slider.set(new)
+
+	def switchMenu(self, menuName = ''):
+		if self.INITSTART == False:	
+			menus = {
+				'file':[self.file_button, self.file_container], 
+				'phone': [self.phone_button, self.phone_container], 
+				'bluetooth': [self.bluetooth_button, self.bluetooth_container] , 
+				'settings': [self.settings_button, self. settings_container],
+				}
+			
+			selectedMenu = menus[menuName]
+			
+			if menuName.lower() in menus:
+				menus.pop(menuName)
+			elif menuName.lower() not in menus:
+				print('No such menu name')
+
+			for menu in menus:
+				menus[menu][0].config(state='normal')
+				menus[menu][1].place_forget()
+
+			selectedMenu[0].config(state='disabled')
+			selectedMenu[1].place(x=0, y=80, width=800, height=400)
 	
 	def init_bt_device(self):
 		'''
@@ -352,7 +416,7 @@ class Gui:
 			self.device.connectToPlayer() #Create the bluetooth device
 
 		#Start the track info thread
-		threading.Thread(target=bt_song_info_thread).start()
+		threading.Thread(target=self.bt_song_info_thread).start()
 
 		self.root.update()
 
@@ -384,10 +448,10 @@ class Gui:
 		Send the forward command
 		'''		
 
-		if PLAYING == False:
+		if self.PLAYING == False:
 			#If not playing do nothing
 			pass
-		elif PLAYING == True:
+		elif self.PLAYING == True:
 			#If playing skip the song
 			self.device.bluezPlayer.next() #Send the next command
 			
@@ -395,11 +459,11 @@ class Gui:
 		'''
 		Send the previous command
 		'''
-		if PLAYING == False:
+		if self.PLAYING == False:
 			#If not playing do nothing
 			pass
 
-		elif PLAYING == True:
+		elif self.PLAYING == True:
 			#If playing skip the song
 			self.device.bluezPlayer.previous() #Send the next command
 
@@ -409,15 +473,15 @@ class Gui:
 		Play and pause the music
 		'''
 		
-		if PLAYING == True:
+		if self.PLAYING == True:
 			#If playing
-			PLAYING = False
+			self.PLAYING = False
 			self.playpause_button['image'] = self.play_icon #Set play button to the play icon
 			self.device.bluezPlayer.pause() #Send the pause command
 
-		elif PLAYING == False:
+		elif self.PLAYING == False:
 			#If paused
-			PLAYING = True
+			self.PLAYING = True
 			self.playpause_button['image'] = self.pause_icon #Set the play button to the pause icon
 			self.device.bluezPlayer.play() #Send the play command
 
@@ -426,9 +490,9 @@ class Gui:
 		Toggle between the 3 different loop types, song, album, and off
 		'''
 
-		if LOOP_TYPE == 0:
+		if self.LOOP_TYPE == 0:
 			#Song
-			LOOP_TYPE = 1
+			self.LOOP_TYPE = 1
 			self.loop_button['image'] = self.repeat_icon_single #repeat song
 			try:
 				self.device.bluezPlayer.repeat(1)
@@ -436,9 +500,9 @@ class Gui:
 				print("error")
 				self.LOOP_TYPE = 0
 
-		elif LOOP_TYPE == 1:
+		elif self.LOOP_TYPE == 1:
 			#Album
-			LOOP_TYPE = 2
+			self.LOOP_TYPE = 2
 			self.loop_button['image'] = self.repeat_icon_multi #Repeat album
 			try:
 				self.device.bluezPlayer.repeat(2)
@@ -446,9 +510,9 @@ class Gui:
 				print("error")
 				self.LOOP_TYPE = 0
 
-		elif LOOP_TYPE == 2:
+		elif self.LOOP_TYPE == 2:
 			#Off
-			LOOP_TYPE = 0
+			self.LOOP_TYPE = 0
 			self.loop_button['image'] = self.repeat_icon #Repeat off
 			try:
 				self.device.bluezPlayer.repeat(0)
@@ -462,23 +526,23 @@ class Gui:
 		'''
 
 		while True: #Always
-			while PLAYING:
+			while self.PLAYING:
 				#Only update info while playing
 
 				#Update the artist infi
 				#If it fails to obtain the info for any reason, just set the value to nothing
 				try:
-					self.artistNameText['text'] = textslice(self.device.bluezPlayer.getArtistName()) #Update the artist name
+					self.artistNameText['text'] = self.textslice(self.device.bluezPlayer.getArtistName()) #Update the artist name
 				except Exception as e:
 					print(e)
 					self.artistNameText['text'] = ""
 				try:	
-					self.artistNameText['text'] = textslice(self.device.bluezPlayer.getAlbumName()) #Album Name
+					self.artistNameText['text'] = self.textslice(self.device.bluezPlayer.getAlbumName()) #Album Name
 				except Exception as e:
 					print(e)
 					self.artistNameText['text'] = ""
 				try:
-					self.trackNameText['text'] = textslice(self.device.bluezPlayer.getTrackName()) #Song name
+					self.trackNameText['text'] = self.textslice(self.device.bluezPlayer.getTrackName()) #Song name
 				except Exception as e:
 					print(e)
 					self.trackNameText['text'] = ""
@@ -486,45 +550,45 @@ class Gui:
 				#Detect if the device is playing music to see if it was paused from another place
 				if self.device.bluezPlayer.isPlaying() == False:
 					#If playing
-					PLAYING = False
+					self.PLAYING = False
 					self.playpause_button['image'] = self.play_icon #Set play button to the play icon
 				
 				#Try changing shuffle
 				try:
-					if self.device.bluezPlayer.getShuffle() == False and SHUFFLE_VALUE == True: #If there's a mismatch	
-						SHUFFLE_VALUE = True
+					if self.device.bluezPlayer.getShuffle() == False and self.SHUFFLE_VALUE == True: #If there's a mismatch	
+						self.SHUFFLE_VALUE = True
 						self.shuffle_button['image'] = self.shuffle_icon_on #Set icon to shuffle on
-					elif self.device.bluezPlayer.getShuffle() == True and SHUFFLE_VALUE == False:
-						SHUFFLE_VALUE = False
+					elif self.device.bluezPlayer.getShuffle() == True and self.SHUFFLE_VALUE == False:
+						self.SHUFFLE_VALUE = False
 						self.shuffle_button['image'] = self.shuffle_icon #Set icon to shuffle off
 				except Exception as e:
 					print(e)
 					#If there's a problem, set the shuffle to off
-					SHUFFLE_VALUE = False
+					self.SHUFFLE_VALUE = False
 					self.shuffle_button['image'] = self.shuffle_icon 
 
 				#See if the repeat mode is on
 				try:
-					if self.device.bluezPlayer.getRepeat() == 0 and (LOOP_TYPE == 1 or LOOP_TYPE == 2):
-						LOOP_TYPE = 0
+					if self.device.bluezPlayer.getRepeat() == 0 and (self.LOOP_TYPE == 1 or self.LOOP_TYPE == 2):
+						self.LOOP_TYPE = 0
 						self.loop_button['image'] = self.repeat_icon
-					elif self.device.bluezPlayer.getRepeat() == 1 and (LOOP_TYPE == 0 or LOOP_TYPE == 2):
-						LOOP_TYPE = 1
+					elif self.device.bluezPlayer.getRepeat() == 1 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 2):
+						self.LOOP_TYPE = 1
 						self.loop_button['image'] = self.repeat_icon_single
-					elif self.device.bluezPlayer.getRepeat() == 2 and (LOOP_TYPE == 0 or LOOP_TYPE == 1):
-						LOOP_TYPE = 2
+					elif self.device.bluezPlayer.getRepeat() == 2 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 1):
+						self.LOOP_TYPE = 2
 						self.loop_button['image'] = self.repeat_icon_multi
 				except Exception as e:
 					print(e)
 					#If there's an error just set it to off
-					LOOP_TYPE = 0
+					self.LOOP_TYPE = 0
 					self.loop_button['image'] = self.repeat_icon
 
 				#Constantly update the track length and the progress bar
 				try:
-					self.track_length['text'] = ms_to_timecode(self.device.bluezPlayer.getDuration()) #Update the track length
-					self.current_position['text'] = ms_to_timecode(self.device.bluezPlayer.getPosition()) #Update the current position
-					self.progress_bar['value'] = mapper(self.device.bluezPlayer.getPosition(), 0, self.device.bluezPlayer.getDuration()) #Update the progress bar
+					self.track_length['text'] = self.ms_to_timecode(self.device.bluezPlayer.getDuration()) #Update the track length
+					self.current_position['text'] = self.ms_to_timecode(self.device.bluezPlayer.getPosition()) #Update the current position
+					self.progress_bar['value'] = self.mapper(self.device.bluezPlayer.getPosition(), 0, self.device.bluezPlayer.getDuration()) #Update the progress bar
 				except Exception as e:
 					print(e)
 					#If there's any error, just set everything to 0
@@ -536,7 +600,7 @@ class Gui:
 
 			#Wait for the device to keep playing
 			if self.device.bluezPlayer.isPlaying() == True:
-				PLAYING = True
+				self.PLAYING = True
 				self.playpause_button['image'] = self.pause_icon
 			time.sleep(0.01) #Sleep to prevent the thread from taking all CPU time
 
@@ -547,7 +611,6 @@ class Gui:
 		Take an input value, the minimum possible value, and the maximum possible value
 		'''
 		in_range = maximum - minimum #Get the range
-		value = in_value - minimum
 		out_value = (float(in_value)/in_range)*100 #Map the value
 		return out_value+minimum
 

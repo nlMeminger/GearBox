@@ -3,8 +3,12 @@ import subprocess
 
 class SystemHost:
 
+    currVolume = 0 #current Volume as a percent
+    currBrightness = 0 #current Volume as a percent
+
     def __init__(self):
-        pass
+        #self.currVolume = self.getCurrVolume()
+        self.currBrightness = self.getCurrBrightness()
 
     def _commandRun(self,command):
         command = shlex.quote(command)
@@ -22,12 +26,14 @@ class SystemHost:
         return results
 
     def setBrightness(self,brightness):
+        
+        newBrightness = int(brightness) / 100
 
-        brightness = int(brightness) / 100
+        if newBrightness <= 0 or newBrightness >= 1:
+            return
+        self.currBrightness = brightness
 
-        #print(brightness)
-
-        self._commandRun(' xrandr --output eDP-1 --brightness {}'.format(brightness))
+        self._commandRun(' xrandr --output eDP-1 --brightness {}'.format(newBrightness))
         
         #file = open("/sys/class/backlight/rpi_backlight/brightness","w")
         #file.write(str(brightness))
@@ -37,17 +43,17 @@ class SystemHost:
         #results = self._commandRun('cat /sys/class/backlight/rpi_backlight/brightness')
         #currBrightness = int(results['stdout']) / 2.55
         
-        currBrightness = self._commandRun('xrandr --verbose |grep eDP-1 -A 5 | grep Brightness')
-        currBrightness = float(currBrightness['stdout'].split()[1].strip()) * 100
-
-        return currBrightness
+        #currBrightness = self._commandRun('xrandr --verbose |grep eDP-1 -A 5 | grep Brightness')
+        #currBrightness = float(currBrightness['stdout'].split()[1].strip()) * 100
+        return self.currBrightness
 
     def setVolume(self,volume_level):
-        volume_level = int(volume_level) * 1000
-        self._commandRun('pactl set-sink-volume @DEFAULT_SINK@ {}'.format(volume_level))
+        volume_level = int(volume_level)
+        self.currVolume = volume_level
+        self._commandRun('pactl set-sink-volume @DEFAULT_SINK@ {}%'.format(volume_level))
 
     def getCurrVolume(self):
-        pass
+        return self.currVolume
 
     def checkForConnectedDevices(self):
         results = self._commandRun('hcitool con')
@@ -57,8 +63,8 @@ class SystemHost:
         else:
             return True
 
-    def getConnectedDeviceName(self):
-        results = self._commandRun('hcitool info {} | grep Name'.format(get_connected_mac()))
+    def getConnectedDeviceName(self, macAddress):
+        results = self._commandRun('hcitool info {} | grep Name'.format(macAddress))
         name = results['stdout'].replace('Device Name: ', '')
         return name
 
