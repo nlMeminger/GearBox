@@ -1,0 +1,26 @@
+body {
+  height: 100%;
+  padding-top: 61px;
+  width: 100%;
+}
+
+header .tabs li a {
+  border-radius: 0 !important;
+  border-top: none !important;
+}
+
+header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+}
+
+footer {
+  bottom: 0;
+  position: fixed;
+  width: 100%;
+}
+
+main {
+  padding: 1em;
+}

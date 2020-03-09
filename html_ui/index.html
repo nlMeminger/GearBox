@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MagiCarp</title>
+    <link rel="stylesheet" href="css/bulma.min.css">
+    <link rel="stylesheet" href="css/fork-awesome.min.css">
+    <link rel="stylesheet" href="css/main.css">
+  </head>
+  <body>
+    <header>
+      <div class="tabs is-large is-toggle is-fullwidth">
+        <ul>
+          <li class="is-active"><a data-section="bluetooth"><span class="fa fa-fw fa-lg fa-bluetooth"></span> Bluetooth</a></li>
+          <li><a data-section="phone"><span class="fa fa-fw fa-lg fa-phone"></span> Phone</a></li>
+          <li><a data-section="settings"><span class="fa fa-fw fa-lg fa-cog"></span> Settings</a></li>
+        </ul>
+      </div>
+    </header>
+    <main>
+      <section id="bluetooth">
+        <h2 class="title">Bluetooth</h2>
+        <p class="subtitle">Status: <span id="bt-status">Not Connected</span></p>
+        <div class="panel">
+        </div>
+      </section>
+      <section id="phone">
+        <h2 class="title">WIP</h2>
+      </section>
+      <section id="settings">
+        <h2 class="title">Settings</h2>
+        <span class="fa fa-fw fa-lg fa-random"></span>
+        <span class="fa fa-fw fa-lg fa-retweet"></span>
+      </section>
+
+    </main>
+    <footer>
+      <div class="box">
+        <progress class="progress is-small" value="10" max="100"></progress>
+
+        <span class="fa fa-fw fa-lg fa-backward"></span>
+        <span class="fa fa-fw fa-lg fa-pause"></span>
+        <span class="fa fa-fw fa-lg fa-play"></span>
+        <span class="fa fa-fw fa-lg fa-forward"></span>
+        &nbsp
+        <span id="audio-time">0:10/1:00</span>
+      </div>
+    </footer>
+    <script src="js/main.js""></script>
+  </body>
+</html>
