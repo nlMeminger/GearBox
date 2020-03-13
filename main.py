@@ -5,7 +5,7 @@ import media_control
 
 def main():
     sys = systemhost.SystemHost()
-    sys.setVolume(25)
+    sys.setVolume(50)
     sys.setBrightness(50)
    
    

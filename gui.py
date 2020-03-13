@@ -380,7 +380,8 @@ class Gui:
 
 		if self.sysHost.checkForConnectedDevices():
 			labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
-			self.connectDevice(self.sysHost.getConnectedDeviceMac())
+			if self.device is None:
+				self.connectDevice(self.sysHost.getConnectedDeviceMac())
 			#self.device = btdevice.BtDevice(macAddress=self.sysHost.getConnectedDeviceMac())
 			#self.init_bt_device()
 		else:
@@ -398,7 +399,7 @@ class Gui:
 		buttonStartingXpos = 30
 		buttonStartingYpos = 50
 
-		devices = bluetooth.discover_devices(duration=8, flush_cache=True, lookup_names=False, lookup_class=False, device_id=-1, iac=10390323)
+		devices = bluetooth.discover_devices(duration=3, flush_cache=True, lookup_names=False, lookup_class=False, device_id=-1, iac=10390323)
 		devices = []
 		nearbyDevices = []
 
@@ -422,6 +423,7 @@ class Gui:
 		#self.sysHost.connnectToDevice(mac)
 		self.device = btdevice.BtDevice(macAddress=mac)
 		self.init_bt_device()
+		self.initAlreadyConnectedDevice()
 		
 
 	def brightnessUp(self, slider):
@@ -510,6 +512,7 @@ class Gui:
 		while self.device.playerPropertiesInterface is None:
 			time.sleep(.5)
 			if self.device.isPlaying() == True:
+				self.device.getSongInfo()
 				break
 		
 		print('starting thread')

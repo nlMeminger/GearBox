@@ -32,17 +32,17 @@ class SystemHost:
     def setBrightness(self,brightness):
         
         #newBrightness = int(brightness) / 100
-        newBrightness = float(brightness) * 9.37
+        newBrightness = float(brightness) * 2.55
         newBrightness = int(newBrightness)
-        if newBrightness <= (5 * 9.37) or newBrightness > 937:
+        if newBrightness <= (5 * 2.55) or newBrightness > 255:
             return
 
         self.currBrightness = brightness
 
         #self._commandRun(' xrandr --output eDP-1 --brightness {}'.format(newBrightness))
         
-        file = open("/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness", "w")
-        #file = open("/sys/class/backlight/rpi_backlight/brightness","w")
+        #file = open("/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness", "w")
+        file = open("/sys/class/backlight/rpi_backlight/brightness","w")
         file.write(str(newBrightness))
         file.close()
 
