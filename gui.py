@@ -21,11 +21,13 @@ import threading
 
 import subprocess
 import shlex
-
+import bluetooth
 import media_control
 import systemhost as sh
+import btdevice
 
 import CONFIG #Import the configuration options
+import rememberedDevices
 
 class Gui:
 
@@ -55,6 +57,7 @@ class Gui:
 	volumeDownImage = 'interface_res/volume-down-fill.gif'
 	brightnessUpImage = 'interface_res/brightness-up.png'
 	brightnessDownImage = 'interface_res/brightness-down.png'
+	reloadImage = 'interface_res/reload.png'
 
 	#Root Window
 	root = None
@@ -72,7 +75,9 @@ class Gui:
 	artist_icon = None
 	track_icon = None
 	album_icon = None
-
+	artistIcon = None
+	trackIcon = None
+	albumIcon = None
 	#Player control icons
 	shuffle_icon = None
 	shuffle_icon_on = None
@@ -83,6 +88,7 @@ class Gui:
 	repeat_icon = None
 	repeat_icon_single = None
 	repeat_icon_multi = None
+	reload_icon = None
 
 	#buttons
 	file_button = None
@@ -105,19 +111,26 @@ class Gui:
 	bluetooth_container = None
 	phone_container = None
 	settings_container = None
+	search_for_devices_button = None
 
 	#define playback attributes
 	SHUFFLE_VALUE = False
 	PLAYING = False
 	LOOP_TYPE = 0
-	INITSTART =True
+	INITSTART = True
 
 	artistNameText = None
 	albumNameText = None
 	trackNameText = None
 	currentPosition = None
 
-	def __init__(self, device, sysHost):
+	#bluetooth
+	sock = None
+
+	def __init__(self, sysHost, device = None):
+		
+
+		
 		self.device = device
 		self.sysHost = sysHost
 		self.defineWindow()
@@ -128,8 +141,9 @@ class Gui:
 		self.settings_menu_init()
 		self.file_menu_init()
 		self.bluetooth_menu_init()
-		self.menu_bar()		
-		self.INITSTART = False
+		self.menu_bar()
+		self.INITSTART = False			
+		self.initAlreadyConnectedDevice()
 
 		#Find which tab to start on
 		if CONFIG.DEFAULT_TAB == 1: #File menu
@@ -144,10 +158,9 @@ class Gui:
 		elif CONFIG.DEFAULT_TAB == 4: #Settings menu
 			self.switchMenu('settings')
 		
-		self.init_bt_device()
 
 				
-
+		
 		#Begin displaying the window	
 		self.root.mainloop()
 
@@ -174,7 +187,7 @@ class Gui:
 		#Player control icons
 		self.shuffle_icon = tk.PhotoImage(file=self.shuffleImage).subsample(3,3)
 		self.shuffle_icon_on = tk.PhotoImage(file=self.shuffleOnImage).subsample(3,3)
-		self.rewind_icon = tk.PhotoImage(file=self.repeatImage).subsample(3,3)
+		self.rewind_icon = tk.PhotoImage(file=self.rewindImage).subsample(3,3)
 		self.pause_icon = tk.PhotoImage(file=self.pauseImage).subsample(3,3)
 		self.play_icon = tk.PhotoImage(file=self.playImage).subsample(3,3)
 		self.forward_icon = tk.PhotoImage(file=self.forwardImage).subsample(3,3)
@@ -187,6 +200,7 @@ class Gui:
 		self.brightness_down_icon = tk.PhotoImage(file=self.brightnessDownImage).subsample(6,6)
 		self.volume_up_icon = tk.PhotoImage(file=self.volumeUpImage).subsample(6,6)
 		self.volume_down_icon = tk.PhotoImage(file=self.volumeDownImage).subsample(6,6)
+		self.reload_icon = tk.PhotoImage(file=self.reloadImage).subsample(6,6)
 
 	def menu_bar(self):
 
@@ -234,7 +248,7 @@ class Gui:
 		#Create a slider to control the system volume
 		volume_slider = tk.Scale(self.file_container)
 		currentVolume = self.sysHost.getCurrVolume()
-		volume_slider = tk.Scale(self.file_container, length=200, command=self.sysHost.setVolume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=100,)
+		volume_slider = tk.Scale(self.file_container, bigincrement=5, length=200, command=self.sysHost.setVolume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=100,)
 		volume_slider.set(currentVolume)
 
 		volume_slider.place(x=130, y=150)
@@ -260,11 +274,14 @@ class Gui:
 		labelText = ''
 
 		if self.sysHost.checkForConnectedDevices():
-			labelText = 'Connected to: {}'.format(self.device.deviceName)
+			labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
+			self.connectDevice(self.sysHost.getConnectedDeviceMac())
+			#self.device = btdevice.BtDevice(macAddress=self.sysHost.getConnectedDeviceMac())
+			#self.init_bt_device()
 		else:
 			#Define the button for the bluetooth device entry
-			connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=self.device.connectToPlayer())
-			connectDevice.place(x=240, y=10, height=20)
+			#connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=self.device.connectToPlayer)
+			#connectDevice.place(x=240, y=10, height=20)
 			labelText = 'No Connected Devices'
 
 		bluetooth_address_text = tk.Label(self.bluetooth_container, text=labelText)
@@ -273,13 +290,13 @@ class Gui:
 		
 
 		#Set the icons for the song info
-		self.artist_icon = tk.Label(self.bluetooth_container, image=self.artist_icon)
-		self.artist_icon.place(x=5, y=120)
-		self.track_icon = tk.Label(self.bluetooth_container, image=self.track_icon)
-		self.track_icon.place(x=5, y=60)
+		self.artistIcon = tk.Label(self.bluetooth_container, image=self.artist_icon)
+		self.artistIcon.place(x=5, y=120)
+		self.trackIcon = tk.Label(self.bluetooth_container, image=self.track_icon)
+		self.trackIcon.place(x=5, y=60)
 		
-		self.album_icon = tk.Label(self.bluetooth_container, image=self.album_icon)
-		self.album_icon.place(x=5, y=180)
+		self.albumIcon = tk.Label(self.bluetooth_container, image=self.album_icon)
+		self.albumIcon.place(x=5, y=180)
 
 		#Define the text boxes for the song info
 		trackInfoFont = tkfont.Font(size=24)
@@ -332,10 +349,15 @@ class Gui:
 		self.phone_container.place_forget()
 
 
+		self.search_for_devices_button = tk.Button(self.phone_container, image=self.reload_icon, command=self.searchForDevices)
+		self.search_for_devices_button.place(x=600, y=50)
+
+
+
 		#WIP Text
-		wipfont = tkfont.Font(size=50)
-		wiptext = tk.Label(self.phone_container, text="Nearby Devices", font=wipfont)
-		wiptext.place(x=0, y=100)
+		#wipfont = tkfont.Font(size=50)
+		#wiptext = tk.Label(self.phone_container, text="Nearby Devices", font=wipfont)
+		#wiptext.place(x=0, y=100)
 
 	
 	def settings_menu_init(self):
@@ -353,38 +375,105 @@ class Gui:
 		wiptext = tk.Label(self.settings_container, text="Work in progress", font=wipfont)
 		wiptext.place(x=0, y=100)
 
+	def initAlreadyConnectedDevice(self):
+		labelText = ''
+
+		if self.sysHost.checkForConnectedDevices():
+			labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
+			self.connectDevice(self.sysHost.getConnectedDeviceMac())
+			#self.device = btdevice.BtDevice(macAddress=self.sysHost.getConnectedDeviceMac())
+			#self.init_bt_device()
+		else:
+			#Define the button for the bluetooth device entry
+			#connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=self.device.connectToPlayer)
+			#connectDevice.place(x=240, y=10, height=20)
+			labelText = 'No Connected Devices'
+
+		bluetooth_address_text = tk.Label(self.bluetooth_container, text=labelText)
+		bluetooth_address_text.place(x=0, y=10, height=50)
+
+	def searchForDevices(self):
+		if self.INITSTART:
+			return
+		buttonStartingXpos = 30
+		buttonStartingYpos = 50
+
+		devices = bluetooth.discover_devices(duration=8, flush_cache=True, lookup_names=False, lookup_class=False, device_id=-1, iac=10390323)
+		devices = []
+		nearbyDevices = []
+
+		for i in rememberedDevices.rememberedDevices:
+			if i['mac'] not in devices:
+				devices.append(i['mac'])
+
+		for device in devices:
+			devName = bluetooth.lookup_name(address=device, timeout=10)
+			if devName == '':
+				devName=device
+			newButton = tk.Button(self.phone_container, command= lambda: self.connectDevice(device), text = devName)
+			nearbyDevices.append({'mac':device, 'name': devName, 'button': newButton})
+			newButton.place(x=buttonStartingXpos, y=buttonStartingYpos)
+			buttonStartingYpos = buttonStartingYpos + 50
+
+	def connectDevice(self, mac):
+		if self.INITSTART:
+			return
+		print('Yay!! Your pushed the button!!')
+		#self.sysHost.connnectToDevice(mac)
+		self.device = btdevice.BtDevice(macAddress=mac)
+		self.init_bt_device()
+		
+
 	def brightnessUp(self, slider):
+		if self.INITSTART:
+			return
+
 		curr = int(self.sysHost.currBrightness)
-		new = curr + 1
+		new = curr + 5
 		if new > 100:
 			return
 		self.sysHost.setBrightness(new)
 		slider.set(new)
 
 	def brightnessDown(self, slider):
+		if self.INITSTART:
+			return
+		
 		curr = int(self.sysHost.currBrightness)
-		new = curr - 1
+		new = curr - 5
 		if new < 5:
 			return
 		self.sysHost.setBrightness(new)
 		slider.set(new)
 
 	def volumeUp(self, slider):
+		if self.INITSTART:
+			return
+
 		curr = self.sysHost.currVolume
-		new = curr + 1
-		if new < 0:
+		new = curr + 5
+		if new > 100:
 			return
 		self.sysHost.setVolume(new)
 		slider.set(new)
 	
 	def volumeDown(self, slider):
+		if self.INITSTART:
+			return
+
 		curr = self.sysHost.currVolume
-		new = curr - 1
-		if new > 75: return
+		new = curr - 5
+		if new < 0: return
 		self.sysHost.setVolume(new)
 		slider.set(new)
 
+	#def volumeMuteUmute(self, slider):
+
+
 	def switchMenu(self, menuName = ''):
+		if self.INITSTART:
+			return
+
 		if self.INITSTART == False:	
 			menus = {
 				'file':[self.file_button, self.file_container], 
@@ -408,14 +497,22 @@ class Gui:
 			selectedMenu[1].place(x=0, y=80, width=800, height=400)
 	
 	def init_bt_device(self):
-		'''
-		Initialize the bluetooth device
-		'''	
+		if self.INITSTART:
+			return
+#		'''
+#		Initialize the bluetooth device
+#		'''	
 		
-		if self.sysHost.checkForConnectedDevices():
-			self.device.connectToPlayer() #Create the bluetooth device
+#		if self.sysHost.checkForConnectedDevices():
+#			self.device.connectToPlayer() #Create the bluetooth device
 
 		#Start the track info thread
+		while self.device.playerPropertiesInterface is None:
+			time.sleep(.5)
+			if self.device.isPlaying() == True:
+				break
+		
+		print('starting thread')
 		threading.Thread(target=self.bt_song_info_thread).start()
 
 		self.root.update()
@@ -429,18 +526,18 @@ class Gui:
 			self.SHUFFLE_VALUE = False
 			self.shuffle_button['image'] = self.shuffle_icon
 			try:
-				self.device.bluezPlayer.shuffle(False)
+				self.device.shuffle(False)
 			except Exception as e:
-				print(e)
+				#print(e)
 				print("Error")
 
 		elif SHUFFLE_VALUE == False:
 			SHUFFLE_VALUE = True
 			self.shuffle_button['image'] = self.shuffle_icon_on
 			try:
-				self.device.bluezPlayer.shuffle(True)
+				self.device.shuffle(True)
 			except Exception as e:
-				print(e)
+				#print(e)
 				print("Error")
 
 	def bt_forward(self):
@@ -453,7 +550,7 @@ class Gui:
 			pass
 		elif self.PLAYING == True:
 			#If playing skip the song
-			self.device.bluezPlayer.next() #Send the next command
+			self.device.next() #Send the next command
 			
 	def bt_back(self):
 		'''
@@ -465,7 +562,7 @@ class Gui:
 
 		elif self.PLAYING == True:
 			#If playing skip the song
-			self.device.bluezPlayer.previous() #Send the next command
+			self.device.previous() #Send the next command
 
 
 	def bt_playpause(self):
@@ -477,13 +574,13 @@ class Gui:
 			#If playing
 			self.PLAYING = False
 			self.playpause_button['image'] = self.play_icon #Set play button to the play icon
-			self.device.bluezPlayer.pause() #Send the pause command
+			self.device.pause() #Send the pause command
 
 		elif self.PLAYING == False:
 			#If paused
 			self.PLAYING = True
 			self.playpause_button['image'] = self.pause_icon #Set the play button to the pause icon
-			self.device.bluezPlayer.play() #Send the play command
+			self.device.play() #Send the play command
 
 	def bt_loop(self):
 		'''
@@ -495,7 +592,7 @@ class Gui:
 			self.LOOP_TYPE = 1
 			self.loop_button['image'] = self.repeat_icon_single #repeat song
 			try:
-				self.device.bluezPlayer.repeat(1)
+				self.device.repeat(1)
 			except:
 				print("error")
 				self.LOOP_TYPE = 0
@@ -505,7 +602,7 @@ class Gui:
 			self.LOOP_TYPE = 2
 			self.loop_button['image'] = self.repeat_icon_multi #Repeat album
 			try:
-				self.device.bluezPlayer.repeat(2)
+				self.device.repeat(2)
 			except:
 				print("error")
 				self.LOOP_TYPE = 0
@@ -515,7 +612,7 @@ class Gui:
 			self.LOOP_TYPE = 0
 			self.loop_button['image'] = self.repeat_icon #Repeat off
 			try:
-				self.device.bluezPlayer.repeat(0)
+				self.device.repeat(0)
 			except:
 				print("error")
 				self.LOOP_TYPE = 0
@@ -532,65 +629,81 @@ class Gui:
 				#Update the artist infi
 				#If it fails to obtain the info for any reason, just set the value to nothing
 				try:
-					self.artistNameText['text'] = self.textslice(self.device.bluezPlayer.getArtistName()) #Update the artist name
-				except Exception as e:
-					print(e)
-					self.artistNameText['text'] = ""
-				try:	
-					self.artistNameText['text'] = self.textslice(self.device.bluezPlayer.getAlbumName()) #Album Name
-				except Exception as e:
-					print(e)
-					self.artistNameText['text'] = ""
+					self.device.getSongInfo()
+				except:
+					pass
+				
 				try:
-					self.trackNameText['text'] = self.textslice(self.device.bluezPlayer.getTrackName()) #Song name
+					newArtistName = self.textslice(self.device.getArtistName())
+					if (self.artistNameText['text'] != newArtistName) or (newArtistName == ''):
+						self.artistNameText['text'] = newArtistName #Update the artist name
 				except Exception as e:
-					print(e)
-					self.trackNameText['text'] = ""
+					pass
+					##print(e)
+					#self.artistNameText['text'] = ""
+				try:	
+					newAlbumName = self.textslice(self.device.getAlbumName())
+					if self.albumNameText['text'] != newAlbumName or newAlbumName == '':					
+						self.albumNameText['text'] = newAlbumName #Album Name
+				except Exception as e:
+					pass
+					##print(e)
+					#self.artistNameText['text'] = ""
+				try:
+					newTrackName = self.textslice(self.device.getTrackName())
+					if self.trackNameText['text'] != newTrackName or newAlbumName == '':
+						self.trackNameText['text'] = newTrackName
+
+					 #Song name
+				except Exception as e:
+					pass
+					##print(e)
+					#self.trackNameText['text'] = ""
 				
 				#Detect if the device is playing music to see if it was paused from another place
-				if self.device.bluezPlayer.isPlaying() == False:
+				if self.device.isPlaying() == False:
 					#If playing
 					self.PLAYING = False
 					self.playpause_button['image'] = self.play_icon #Set play button to the play icon
 				
 				#Try changing shuffle
 				try:
-					if self.device.bluezPlayer.getShuffle() == False and self.SHUFFLE_VALUE == True: #If there's a mismatch	
+					if self.device.getShuffle() == False and self.SHUFFLE_VALUE == True: #If there's a mismatch	
 						self.SHUFFLE_VALUE = True
 						self.shuffle_button['image'] = self.shuffle_icon_on #Set icon to shuffle on
-					elif self.device.bluezPlayer.getShuffle() == True and self.SHUFFLE_VALUE == False:
+					elif self.device.getShuffle() == True and self.SHUFFLE_VALUE == False:
 						self.SHUFFLE_VALUE = False
 						self.shuffle_button['image'] = self.shuffle_icon #Set icon to shuffle off
 				except Exception as e:
-					print(e)
+					#print(e)
 					#If there's a problem, set the shuffle to off
 					self.SHUFFLE_VALUE = False
 					self.shuffle_button['image'] = self.shuffle_icon 
 
 				#See if the repeat mode is on
 				try:
-					if self.device.bluezPlayer.getRepeat() == 0 and (self.LOOP_TYPE == 1 or self.LOOP_TYPE == 2):
+					if self.device.getRepeat() == 0 and (self.LOOP_TYPE == 1 or self.LOOP_TYPE == 2):
 						self.LOOP_TYPE = 0
 						self.loop_button['image'] = self.repeat_icon
-					elif self.device.bluezPlayer.getRepeat() == 1 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 2):
+					elif self.device.getRepeat() == 1 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 2):
 						self.LOOP_TYPE = 1
 						self.loop_button['image'] = self.repeat_icon_single
-					elif self.device.bluezPlayer.getRepeat() == 2 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 1):
+					elif self.device.getRepeat() == 2 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 1):
 						self.LOOP_TYPE = 2
 						self.loop_button['image'] = self.repeat_icon_multi
 				except Exception as e:
-					print(e)
+					#print(e)
 					#If there's an error just set it to off
 					self.LOOP_TYPE = 0
 					self.loop_button['image'] = self.repeat_icon
 
 				#Constantly update the track length and the progress bar
 				try:
-					self.track_length['text'] = self.ms_to_timecode(self.device.bluezPlayer.getDuration()) #Update the track length
-					self.current_position['text'] = self.ms_to_timecode(self.device.bluezPlayer.getPosition()) #Update the current position
-					self.progress_bar['value'] = self.mapper(self.device.bluezPlayer.getPosition(), 0, self.device.bluezPlayer.getDuration()) #Update the progress bar
+					self.track_length['text'] = self.ms_to_timecode(self.device.getDuration()) #Update the track length
+					self.current_position['text'] = self.ms_to_timecode(self.device.getPosition()) #Update the current position
+					self.progress_bar['value'] = self.mapper(self.device.getPosition(), 0, self.device.getDuration()) #Update the progress bar
 				except Exception as e:
-					print(e)
+					#print(e)
 					#If there's any error, just set everything to 0
 					self.track_length['text'] = "0:00"
 					self.current_position['text'] = "0:00"
@@ -599,7 +712,7 @@ class Gui:
 				time.sleep(0.1) #Sleep to prevent the thread from taking all CPU time
 
 			#Wait for the device to keep playing
-			if self.device.bluezPlayer.isPlaying() == True:
+			if self.device.isPlaying() == True:
 				self.PLAYING = True
 				self.playpause_button['image'] = self.pause_icon
 			time.sleep(0.01) #Sleep to prevent the thread from taking all CPU time

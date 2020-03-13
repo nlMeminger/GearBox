@@ -1,14 +1,18 @@
 import shlex
 import subprocess
+import yaml
+
 
 class SystemHost:
 
     currVolume = 0 #current Volume as a percent
     currBrightness = 0 #current Volume as a percent
+    configFile = 'config.yml'
 
     def __init__(self):
         #self.currVolume = self.getCurrVolume()
         self.currBrightness = self.getCurrBrightness()
+        #config = yaml.safe_load(os.environ.get("CONFIGPATH", open("config.yml"))) 
 
     def _commandRun(self,command):
         command = shlex.quote(command)
@@ -27,17 +31,20 @@ class SystemHost:
 
     def setBrightness(self,brightness):
         
-        newBrightness = int(brightness) / 100
-
-        if newBrightness <= 0 or newBrightness >= 1:
+        #newBrightness = int(brightness) / 100
+        newBrightness = float(brightness) * 9.37
+        newBrightness = int(newBrightness)
+        if newBrightness <= (5 * 9.37) or newBrightness > 937:
             return
+
         self.currBrightness = brightness
 
-        self._commandRun(' xrandr --output eDP-1 --brightness {}'.format(newBrightness))
+        #self._commandRun(' xrandr --output eDP-1 --brightness {}'.format(newBrightness))
         
+        file = open("/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness", "w")
         #file = open("/sys/class/backlight/rpi_backlight/brightness","w")
-        #file.write(str(brightness))
-        #file.close()
+        file.write(str(newBrightness))
+        file.close()
 
     def getCurrBrightness(self):
         #results = self._commandRun('cat /sys/class/backlight/rpi_backlight/brightness')
@@ -58,16 +65,39 @@ class SystemHost:
     def checkForConnectedDevices(self):
         results = self._commandRun('hcitool con')
         
-        if '>' not in results['stdout']:
+        if '<' not in results['stdout']:
             return False
         else:
             return True
 
-    def getConnectedDeviceName(self, macAddress):
+    def getConnectedDeviceMac(self):
+        results = self._commandRun('hcitool con')
+
+        device = results['stdout'].strip().split()
+        deviceMac = device[3]
+        print(deviceMac)
+        return deviceMac
+
+    def getConnectedDeviceName(self, macAddress = ''):
+
+        if macAddress == '':
+            macAddress = self.getConnectedDeviceMac()
+
         results = self._commandRun('hcitool info {} | grep Name'.format(macAddress))
         name = results['stdout'].replace('Device Name: ', '')
         return name
 
+    def connnectToDevice(self, mac):
+        command = "rfcomm connect hci0 {} &".format(mac)
+        results = self._commandRun(command)
+
+        for i in results:
+            print(i)
+
+        if self.checkForConnectedDevices():
+            print('got one!')
+        else:
+            print('boo')
 
     def getSystemTime(self):
         pass

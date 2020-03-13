@@ -5,15 +5,15 @@ import media_control
 
 def main():
     sys = systemhost.SystemHost()
-    sys.setVolume(40)
-    sys.setBrightness(60)
+    sys.setVolume(25)
+    sys.setBrightness(50)
    
    
     
-    bluetoothDev = btdevice.BtDevice(macAddress= 'A0:56:F3:60:8C:D8')
-    bluetoothDev.connectToPlayer()
+    #bluetoothDev = btdevice.BtDevice(macAddress= 'A0:56:F3:60:8C:D8')
+    #bluetoothDev.connectToPlayer()
 
-    mainGui = gui.Gui(device=bluetoothDev, sysHost = sys)
+    mainGui = gui.Gui(sysHost = sys)
 
 if __name__ == "__main__":  
 
