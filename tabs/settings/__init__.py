@@ -1,6 +1,5 @@
 '''
-Settings menu
-The settings menu for the car stereo project
+Settings tab
 Made by Red in 2020
 Greetings, from the ROC!
 
@@ -11,11 +10,10 @@ For more information see the LICENSE file that was distributed with this code
 Or visit https://www.gnu.org/licenses/gpl-3.0.en.html
 '''
 
-class register:
+from flask import Blueprint, render_template
 
-	def __init__(self, config, app):
-		'''
-		Initialize the settings tab and all things related to it
-		'''
-		
-		pass
+module = Blueprint('settings', __name__, template_folder='html', static_folder='static')
+
+@module.route("/settings")
+def show():
+	return render_template("settings.html")

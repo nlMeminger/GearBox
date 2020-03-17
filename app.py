@@ -15,8 +15,9 @@ import flask
 from flask import render_template
 import redis
 import os
+import json
 
-import CONFIG
+
 import tabs
 
 
@@ -55,15 +56,12 @@ def stream():
 	return flask.Response(event_stream(), mimetype="text/event-stream") #return the event stream with the proper mime so that chrome is happy
 
 
-@app.after_request
-def set_response_headers(response):
-	#This function runs after each request and tells the browser not to cache anything.
-	#Not going to waste data or cycles because it's local-only comms
-	response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-	response.headers['Pragma'] = 'no-cache'
-	response.headers['Expires'] = '0'
-	return response
-
-
 if __name__ == "__main__":
-	app.run(host='0.0.0.0', port=8080) #Run the app on port 80
+
+	#Read config file
+	with open("CONFIG.json") as f:
+		CONFIG = json.load(f)
+
+	tabs.load_tabs(CONFIG, app)
+
+	app.run(host='0.0.0.0', port=8080) #Run the app on port 8080

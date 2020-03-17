@@ -1,2 +1,0 @@
-
-DEFAULT_TAB = 1
