@@ -1,6 +1,6 @@
-pybluez
-python-dbus
-flask
-redis
-gevent
-gunicorn
+pybluez>=0.23
+dbus-python>=1.2.16
+flask>=1.1.1
+redis>=3.3.8
+gevent>=1.4.0
+gunicorn>=19.9.0
