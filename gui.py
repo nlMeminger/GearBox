@@ -1,3 +1,5 @@
+#! /bin/python3
+
 '''
 Tkinter GUI front-end for open source car stereo project
 Made by Red in 2019
@@ -10,601 +12,743 @@ For more information see the LICENSE file that was distributed with this code
 Or visit https://www.gnu.org/licenses/gpl-3.0.en.html
 '''
 
-
+from tkinter import *
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import ttk
 import time
 import threading
 
+import subprocess
+import shlex
+import bluetooth
 import media_control
+import systemhost as sh
+import btdevice
 
 import CONFIG #Import the configuration options
+import rememberedDevices
 
-#Define TK root object and set properties
-root = tk.Tk()
-root.title("PyMedia")
-root.geometry("800x480") #Set window size
-root.resizable(0,0) #Disallow resizing of window
-root.attributes("-fullscreen", True) #Make window full screen
+class Gui:
 
-#Define global resource images
+	sysHost = None
+	device = None
 
+	#Define Window Attributes
+	rootWindow = None
+	windowTitle = 'PyMedia'
+	windowDimensions = '800x480'
 
-bluetooth_icon = tk.PhotoImage(file="interface_res/bluetooth.gif")
+	#Define image attributes
+	bluetoothImage = 'interface_res/bluetooth.gif'
+	shuffleImage = "interface_res/shuffle-line.gif"
+	shuffleOnImage = "interface_res/shuffle-line-enabled.gif"
+	rewindImage = "interface_res/rewind-fill.gif"
+	pauseImage = "interface_res/pause-fill.gif"
+	playImage = "interface_res/play-fill.gif"
+	forwardImage = "interface_res/speed-fill.gif"
+	repeatImage = "interface_res/repeat-line.gif"
+	repeatSingleImage = "interface_res/repeat-line-all.gif"
+	repeatMultiImage = "interface_res/repeat-line-1.gif"
+	artistImage = "interface_res/user-fill.gif"
+	trackImage = "interface_res/music-2-fill.gif"
+	albumImage = "interface_res/album-fill.gif"
+	volumeUpImage = 'interface_res/volume-up-fill.gif'
+	volumeDownImage = 'interface_res/volume-down-fill.gif'
+	brightnessUpImage = 'interface_res/brightness-up.png'
+	brightnessDownImage = 'interface_res/brightness-down.png'
+	reloadImage = 'interface_res/reload.png'
 
-
-#Track info icons
-artist_icon = tk.PhotoImage(file="interface_res/user-fill.gif").subsample(6,6)
-track_icon = tk.PhotoImage(file="interface_res/music-2-fill.gif").subsample(6,6)
-album_icon = tk.PhotoImage(file="interface_res/album-fill.gif").subsample(6,6)
-
-#Player control icons
-shuffle_icon = tk.PhotoImage(file="interface_res/shuffle-line.gif").subsample(3,3)
-shuffle_icon_on = tk.PhotoImage(file="interface_res/shuffle-line-enabled.gif").subsample(3,3)
-rewind_icon = tk.PhotoImage(file="interface_res/rewind-fill.gif").subsample(3,3)
-pause_icon = tk.PhotoImage(file="interface_res/pause-fill.gif").subsample(3,3)
-play_icon = tk.PhotoImage(file="interface_res/play-fill.gif").subsample(3,3)
-forward_icon = tk.PhotoImage(file="interface_res/speed-fill.gif").subsample(3,3)
-repeat_icon = tk.PhotoImage(file="interface_res/repeat-line.gif").subsample(3,3)
-repeat_icon_single = tk.PhotoImage(file="interface_res/repeat-line-all.gif").subsample(3,3)
-repeat_icon_multi = tk.PhotoImage(file="interface_res/repeat-line-1.gif").subsample(3,3)
-
-def menu_bar():
-
-	menu_font = tkfont.Font(size=30, weight="bold")
-
-	global file_button
-	file_button = tk.Button(root, text='File', font=menu_font, command=file_menu)
-	file_button.place(x=0, y=0, width=200, height=80)
-
-	global bluetooth_button
-	bluetooth_button = tk.Button(root, text="Bluetooth", font=menu_font, command=bluetooth_menu)
-	bluetooth_button.place(x=200, y=0, width=200, height=80)
-
-	global phone_button
-	phone_button = tk.Button(root, text="Phone", font=menu_font, command=phone_menu)
-	phone_button.place(x=400, y=0, width=200, height=80)
-
-	global settings_button
-	settings_button = tk.Button(root, text="Settings", font=menu_font, command=settings_menu)
-	settings_button.place(x=600, y=0, width=200, height=80)
-
-
-def file_menu_init():
-
-	#Create a frame to hold the items in this menu. Makes switching menus a lot easier.
-	global file_container
-	file_container = tk.Frame()
-	file_container.place(x=0, y=80, width=800, height=400)
-	file_container.place_forget()
-
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(file_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
+	#Root Window
+	root = None
 	
+	#system control icons
+	brightness_up_icon = None
+	brightness_down_icon = None
+	volume_up_icon = None
+	volume_down_icon = None
 
-def bluetooth_menu_init():
-	'''
-	Contains the actual layout and code for the bluetooth media control menu
-	'''
-	#Define a new frame to hold the layout information
-	global bluetooth_container
-	bluetooth_container = tk.Frame()
-	bluetooth_container.place(x=0, y=80, width=800, height=400) #Place under the menu bar with a size of 800x400
-	bluetooth_container.place_forget() #Hide the container
+	#Bluetooth Icon
+	bluetooth_icon = None
 
-	bluetooth_logo = tk.Label(bluetooth_container, image=bluetooth_icon).place(x=610, y=70) #Placeholder bluetooth icon
+	#Track info icons
+	artist_icon = None
+	track_icon = None
+	album_icon = None
+	artistIcon = None
+	trackIcon = None
+	albumIcon = None
+	#Player control icons
+	shuffle_icon = None
+	shuffle_icon_on = None
+	rewind_icon = None
+	pause_icon = None
+	play_icon = None
+	forward_icon = None
+	repeat_icon = None
+	repeat_icon_single = None
+	repeat_icon_multi = None
+	reload_icon = None
 
-	#Define a form for the bluetooth device mac address entry. This is only temporary until we can detect connections
-	global bluetooth_address_entry
-	bluetooth_address_entry = tk.Entry(bluetooth_container)
-	bluetooth_address_entry.place(x=130, y=10, width=100, height=20)
+	#buttons
+	file_button = None
+	bluetooth_button = None
+	phone_button = None
+	settings_button = None
+	menu_button_height = 80
+	menu_button_width = 200
+	shuffle_button = None
+	rewind_button = None
+	playpause_button = None
+	forward_button = None
+	loop_button = None
+	current_position = None
+	progress_bar = None
+	track_length = None
 
-	#Create a label for the bluetooth mac address entry
-	bluetooth_address_text = tk.Label(bluetooth_container, text="Bluetooth Mac Address")
-	bluetooth_address_text.place(x=0, y=10, height=20)
+	#menu containers
+	file_container = None
+	bluetooth_container = None
+	phone_container = None
+	settings_container = None
+	search_for_devices_button = None
 
-	#Define the button for the bluetooth device entry
-	global bluetooth_address_set
-	bluetooth_address_set = tk.Button(bluetooth_container, text='Set', command=init_bt_device)
-	bluetooth_address_set.place(x=240, y=10, height=20)
-
-	#Set the icons for the song info
-	track_image = tk.Label(bluetooth_container, image=track_icon).place(x=5, y=60)
-	artist_image = tk.Label(bluetooth_container, image=artist_icon).place(x=5, y=120)
-	album_image = tk.Label(bluetooth_container, image=album_icon).place(x=5, y=180)
-
-	#Define the text boxes for the song info
-	track_info_font = tkfont.Font(size=24)
-	global track_name_text
-	track_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	track_name_text.place(x=50, y=60)
-	global artist_name_text
-	artist_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	artist_name_text.place(x=50, y=120)
-	global album_name_text
-	album_name_text = tk.Label(bluetooth_container, text="", font=track_info_font)
-	album_name_text.place(x=50, y=180)
-
-
-	#Define the player controls
-	global SHUFFLE_VALUE
-	global PLAYING
-	global LOOP_TYPE
-
+	#define playback attributes
 	SHUFFLE_VALUE = False
 	PLAYING = False
 	LOOP_TYPE = 0
+	INITSTART = True
 
-	global shuffle_button
-	shuffle_button = tk.Button(bluetooth_container, image=shuffle_icon, command=bt_shuffle_toggle)
-	shuffle_button.place(x=15, y=300)
+	artistNameText = None
+	albumNameText = None
+	trackNameText = None
+	currentPosition = None
+
+	#bluetooth
+	sock = None
+
+	def __init__(self, sysHost, device = None):
+		
+
+		
+		self.device = device
+		self.sysHost = sysHost
+		self.defineWindow()
+		
+		 #Start menu bar
+		#Initialize menus	
+		self.phone_menu_init()
+		self.settings_menu_init()
+		self.file_menu_init()
+		self.bluetooth_menu_init()
+		self.menu_bar()
+		self.INITSTART = False			
+		self.initAlreadyConnectedDevice()
+
+		#Find which tab to start on
+		if CONFIG.DEFAULT_TAB == 1: #File menu
+			self.switchMenu('file')
+
+		elif CONFIG.DEFAULT_TAB == 2: #Bluetooth menu
+			self.switchMenu('bluetooth')
+
+		elif CONFIG.DEFAULT_TAB == 3: #Phone menu
+			self.switchMenu('phone')
+
+		elif CONFIG.DEFAULT_TAB == 4: #Settings menu
+			self.switchMenu('settings')
+		
+
+				
+		
+		#Begin displaying the window	
+		self.root.mainloop()
+
+	def exit_gui(self):
+		self.root.destroy()
+		exit()
+
+	def defineWindow(self):
+		#Define TK root object and set properties
+		self.root = tk.Tk()
+		self.root.title(self.windowTitle)
+		self.root.geometry(self.windowDimensions) #Set window size
+		self.root.resizable(0,0) #Disallow resizing of window
+		self.root.attributes("-fullscreen", True) #Make window full screen
+
+		#Define global resource images
+		self.bluetooth_icon = tk.PhotoImage(file=self.bluetoothImage)
+
+		#Track info icons
+		self.artist_icon = tk.PhotoImage(file=self.artistImage).subsample(6,6)
+		self.track_icon  = tk.PhotoImage(file=self.trackImage).subsample(6,6)
+		self.album_icon = tk.PhotoImage(file=self.albumImage).subsample(6,6)
+
+		#Player control icons
+		self.shuffle_icon = tk.PhotoImage(file=self.shuffleImage).subsample(3,3)
+		self.shuffle_icon_on = tk.PhotoImage(file=self.shuffleOnImage).subsample(3,3)
+		self.rewind_icon = tk.PhotoImage(file=self.rewindImage).subsample(3,3)
+		self.pause_icon = tk.PhotoImage(file=self.pauseImage).subsample(3,3)
+		self.play_icon = tk.PhotoImage(file=self.playImage).subsample(3,3)
+		self.forward_icon = tk.PhotoImage(file=self.forwardImage).subsample(3,3)
+		self.repeat_icon = tk.PhotoImage(file=self.repeatImage).subsample(3,3)
+		self.repeat_icon_single = tk.PhotoImage(file=self.repeatSingleImage).subsample(3,3)
+		self.repeat_icon_multi = tk.PhotoImage(file=self.repeatMultiImage).subsample(3,3)#Define TK root object and set properties
+		
+		#system control icons
+		self.brightness_up_icon = tk.PhotoImage(file=self.brightnessUpImage).subsample(6,6)
+		self.brightness_down_icon = tk.PhotoImage(file=self.brightnessDownImage).subsample(6,6)
+		self.volume_up_icon = tk.PhotoImage(file=self.volumeUpImage).subsample(6,6)
+		self.volume_down_icon = tk.PhotoImage(file=self.volumeDownImage).subsample(6,6)
+		self.reload_icon = tk.PhotoImage(file=self.reloadImage).subsample(6,6)
+
+	def menu_bar(self):
+
+		menu_font = tkfont.Font(size=20, weight="bold")
+		
+		self.file_button = tk.Button(self.root, text='File', font=menu_font, command= lambda: self.switchMenu('file'))
+		self.file_button.place(x=0, y=0, width=self.menu_button_width, height=self.menu_button_height)
+		
+		self.bluetooth_button = tk.Button(self.root, text="Bluetooth", font=menu_font, command= lambda: self.switchMenu('bluetooth'))
+		self.bluetooth_button.place(x=200, y=0, width=self.menu_button_width, height=self.menu_button_height)
+		
+		self.phone_button = tk.Button(self.root, text="Phone", font=menu_font, command= lambda: self.switchMenu('phone'))
+		self.phone_button.place(x=400, y=0, width=self.menu_button_width, height=self.menu_button_height)
+		
+		self.settings_button = tk.Button(self.root, text="Settings", font=menu_font, command= lambda: self.switchMenu('settings'))
+		self.settings_button.place(x=600, y=0, width=self.menu_button_width, height=self.menu_button_height)
 	
-	rewind_button = tk.Button(bluetooth_container, image=rewind_icon, command=bt_back).place(x=105, y=300)
+	def file_menu_init(self):
+		exitButtonWidth = 100
+		exitButtonHeight = 20
+		exitButtonXpos = 130
+		exitButtonYpos = 10
+
+		#Create a frame to hold the items in this menu. Makes switching menus a lot easier.
+		self.file_container = tk.Frame()
+		self.file_container.place(x=0, y=80, width=800, height=400)
+		self.file_container.place_forget()
+
+		#Create an exit button that will exit the program.
+		exitButton = tk.Button(self.file_container, text='Exit', command=self.exit_gui)
+		exitButton.place(x=exitButtonXpos, y=exitButtonYpos, width=exitButtonWidth, height=exitButtonHeight)
+
+		#Create a slider to control the screen brightness
+		brightness_slider = tk.Scale(self.file_container)
+		currentBrightness = self.sysHost.getCurrBrightness()
+		brightness_slider = tk.Scale(self.file_container, length=200, command=self.sysHost.setBrightness, from_=5, label='Brightness', orient=tk.HORIZONTAL, to=100,)
+		brightness_slider.set(currentBrightness)
+		brightness_slider.place(x=130, y=60)
+		
+		brightnessUpButton = tk.Button(self.file_container, command= lambda: self.brightnessUp(brightness_slider), image=self.brightness_up_icon)
+		brightnessDownButton = tk.Button(self.file_container, command= lambda: self.brightnessDown(brightness_slider), image=self.brightness_down_icon)
+		brightnessUpButton.place(x=50, y=30)
+		brightnessDownButton.place(x=50, y=90)
+		
+		#Create a slider to control the system volume
+		volume_slider = tk.Scale(self.file_container)
+		currentVolume = self.sysHost.getCurrVolume()
+		volume_slider = tk.Scale(self.file_container, bigincrement=5, length=200, command=self.sysHost.setVolume, from_=0, label='Volume', orient=tk.HORIZONTAL, to=100,)
+		volume_slider.set(currentVolume)
+
+		volume_slider.place(x=130, y=150)
+		
+		volumeUpButton = tk.Button(self.file_container, command= lambda: self.volumeUp(volume_slider), image=self.volume_up_icon)
+		volumeDownButton = tk.Button(self.file_container, command= lambda: self.volumeDown(volume_slider), image=self.volume_down_icon)
+		volumeUpButton.place(x=50, y=140)
+		volumeDownButton.place(x=50, y=190)
+
+	def bluetooth_menu_init(self):
+		'''
+		Contains the actual layout and code for the bluetooth media control menu
+		'''
+		#Define a new frame to hold the layout information
+		self.bluetooth_container = tk.Frame()
+		self.bluetooth_container.place(x=0, y=80, width=800, height=400) #Place under the menu bar with a size of 800x400
+		self.bluetooth_container.place_forget() #Hide the container
+
+		self.bluetooth_logo = tk.Label(self.bluetooth_container, image=self.bluetooth_icon)
+		self.bluetooth_logo.place(x=610, y=70) #Placeholder bluetooth icon
+
+		#Create a label for the device name
+		labelText = ''
+
+		if self.sysHost.checkForConnectedDevices():
+			labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
+			self.connectDevice(self.sysHost.getConnectedDeviceMac())
+			#self.device = btdevice.BtDevice(macAddress=self.sysHost.getConnectedDeviceMac())
+			#self.init_bt_device()
+		else:
+			#Define the button for the bluetooth device entry
+			#connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=self.device.connectToPlayer)
+			#connectDevice.place(x=240, y=10, height=20)
+			labelText = 'No Connected Devices'
+
+		bluetooth_address_text = tk.Label(self.bluetooth_container, text=labelText)
+		bluetooth_address_text.place(x=0, y=10, height=50)
+
+		
+
+		#Set the icons for the song info
+		self.artistIcon = tk.Label(self.bluetooth_container, image=self.artist_icon)
+		self.artistIcon.place(x=5, y=120)
+		self.trackIcon = tk.Label(self.bluetooth_container, image=self.track_icon)
+		self.trackIcon.place(x=5, y=60)
+		
+		self.albumIcon = tk.Label(self.bluetooth_container, image=self.album_icon)
+		self.albumIcon.place(x=5, y=180)
+
+		#Define the text boxes for the song info
+		trackInfoFont = tkfont.Font(size=24)
+		self.trackNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+		self.trackNameText.place(x=50, y=60)
+		
+		self.artistNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+		self.artistNameText.place(x=50, y=120)
+		
+		self.albumNameText = tk.Label(self.bluetooth_container, text="", font=trackInfoFont)
+		self.albumNameText.place(x=50, y=180)
+
+
+
+		self.shuffle_button = tk.Button(self.bluetooth_container, image=self.shuffle_icon, command=self.bt_shuffle_toggle)
+		self.shuffle_button.place(x=15, y=300)
+		
+		self.rewind_button = tk.Button(self.bluetooth_container, image=self.rewind_icon, command=self.bt_back)
+		self.rewind_button.place(x=105, y=300)
+		
+		self.playpause_button = tk.Button(self.bluetooth_container, image=self.play_icon, command=self.bt_playpause)
+		self.playpause_button.place(x=195, y=300)
+		
+		self.forward_button = tk.Button(self.bluetooth_container, image=self.forward_icon, command=self.bt_forward)
+		self.forward_button.place(x=285, y=300)
+		
+		self.loop_button = tk.Button(self.bluetooth_container, image=self.repeat_icon, command=self.bt_loop)
+		self.loop_button.place(x=375, y=300)
+
+		#Define the progress bar and track length
+		song_position_font = tkfont.Font(size=15)
+
+		self.current_position = tk.Label(self.bluetooth_container, text="0:00", font=song_position_font)
+		self.current_position.place(x=15, y=250)
+		
+		self.progress_bar = ttk.Progressbar(self.bluetooth_container, orient="horizontal", length=470, mode="determinate")
+		self.progress_bar.place(x=65, y=253)
+		
+		self.track_length = tk.Label(self.bluetooth_container, text="0:00", font=song_position_font)
+		self.track_length.place(x=540, y=250)
+
+	def phone_menu_init(self):
+		'''
+		Contains the actual layout and functionality of the phone menu
+		'''
+
+		#Define a container to hold the items in the window
+		self.phone_container = tk.Frame()
+		self.phone_container.place(x=0, y=80, width=800, height=400)
+		self.phone_container.place_forget()
+
+
+		self.search_for_devices_button = tk.Button(self.phone_container, image=self.reload_icon, command=self.searchForDevices)
+		self.search_for_devices_button.place(x=600, y=50)
+
+
+
+		#WIP Text
+		#wipfont = tkfont.Font(size=50)
+		#wiptext = tk.Label(self.phone_container, text="Nearby Devices", font=wipfont)
+		#wiptext.place(x=0, y=100)
+
 	
-	global playpause_button
-	playpause_button = tk.Button(bluetooth_container, image=play_icon, command=bt_playpause)
-	playpause_button.place(x=195, y=300)
+	def settings_menu_init(self):
+		'''
+		Contains the layout information and functionality of the settings menu
+		'''
+
+		#Create a new frame to hold section content
+		self.settings_container = tk.Frame()
+		self.settings_container.place(x=0, y=80, width=800, height=400)
+		self.settings_container.place_forget()
+
+		#Define the WIP text
+		wipfont = tkfont.Font(size=50)
+		wiptext = tk.Label(self.settings_container, text="Work in progress", font=wipfont)
+		wiptext.place(x=0, y=100)
+
+	def initAlreadyConnectedDevice(self):
+		labelText = ''
+
+		if self.sysHost.checkForConnectedDevices():
+			labelText = 'Connected to: {}'.format(self.sysHost.getConnectedDeviceName())
+			if self.device is None:
+				self.connectDevice(self.sysHost.getConnectedDeviceMac())
+			#self.device = btdevice.BtDevice(macAddress=self.sysHost.getConnectedDeviceMac())
+			#self.init_bt_device()
+		else:
+			#Define the button for the bluetooth device entry
+			#connectDevice = tk.Button(self.bluetooth_container, text='Connect', command=self.device.connectToPlayer)
+			#connectDevice.place(x=240, y=10, height=20)
+			labelText = 'No Connected Devices'
+
+		bluetooth_address_text = tk.Label(self.bluetooth_container, text=labelText)
+		bluetooth_address_text.place(x=0, y=10, height=50)
+
+	def searchForDevices(self):
+		if self.INITSTART:
+			return
+		buttonStartingXpos = 30
+		buttonStartingYpos = 50
+
+		devices = bluetooth.discover_devices(duration=3, flush_cache=True, lookup_names=False, lookup_class=False, device_id=-1, iac=10390323)
+		devices = []
+		nearbyDevices = []
+
+		for i in rememberedDevices.rememberedDevices:
+			if i['mac'] not in devices:
+				devices.append(i['mac'])
+
+		for device in devices:
+			devName = bluetooth.lookup_name(address=device, timeout=10)
+			if devName == '':
+				devName=device
+			newButton = tk.Button(self.phone_container, command= lambda: self.connectDevice(device), text = devName)
+			nearbyDevices.append({'mac':device, 'name': devName, 'button': newButton})
+			newButton.place(x=buttonStartingXpos, y=buttonStartingYpos)
+			buttonStartingYpos = buttonStartingYpos + 50
+
+	def connectDevice(self, mac):
+		if self.INITSTART:
+			return
+		print('Yay!! Your pushed the button!!')
+		#self.sysHost.connnectToDevice(mac)
+		self.device = btdevice.BtDevice(macAddress=mac)
+		self.init_bt_device()
+		self.initAlreadyConnectedDevice()
+		
+
+	def brightnessUp(self, slider):
+		if self.INITSTART:
+			return
+
+		curr = int(self.sysHost.currBrightness)
+		new = curr + 5
+		if new > 100:
+			return
+		self.sysHost.setBrightness(new)
+		slider.set(new)
+
+	def brightnessDown(self, slider):
+		if self.INITSTART:
+			return
+		
+		curr = int(self.sysHost.currBrightness)
+		new = curr - 5
+		if new < 5:
+			return
+		self.sysHost.setBrightness(new)
+		slider.set(new)
+
+	def volumeUp(self, slider):
+		if self.INITSTART:
+			return
+
+		curr = self.sysHost.currVolume
+		new = curr + 5
+		if new > 100:
+			return
+		self.sysHost.setVolume(new)
+		slider.set(new)
 	
-	forward_button = tk.Button(bluetooth_container, image=forward_icon, command=bt_forward).place(x=285, y=300)
-	
-	global loop_button
-	loop_button = tk.Button(bluetooth_container, image=repeat_icon, command=bt_loop)
-	loop_button.place(x=375, y=300)
+	def volumeDown(self, slider):
+		if self.INITSTART:
+			return
 
-	#Define the progress bar and track length
-	song_position_font = tkfont.Font(size=15)
+		curr = self.sysHost.currVolume
+		new = curr - 5
+		if new < 0: return
+		self.sysHost.setVolume(new)
+		slider.set(new)
 
-	global current_position
-	current_position = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-	current_position.place(x=15, y=250)
-	
-	global progress_bar
-	progress_bar = ttk.Progressbar(bluetooth_container, orient="horizontal", length=470, mode="determinate")
-	progress_bar.place(x=65, y=253)
-	
-	global track_length
-	track_length = tk.Label(bluetooth_container, text="0:00", font=song_position_font)
-	track_length.place(x=540, y=250)
+	#def volumeMuteUmute(self, slider):
 
 
-	#Create a container to hide the content of the player until a device is connected
-	global nc_container
-	nc_container = tk.Frame()
-	nc_container.place(x=0, y=130, width=800, height=350)
+	def switchMenu(self, menuName = ''):
+		if self.INITSTART:
+			return
 
-	not_connected_font = tkfont.Font(size=40)
-	nc_text = tk.Label(nc_container, text="No Bluetooth Device Connected", font=not_connected_font)
-	nc_text.place(x=0, y=20)
-
-
-def phone_menu_init():
-	'''
-	Contains the actual layout and functionality of the phone menu
-	'''
-
-	#Define a container to hold the items in the window
-	global phone_container
-	phone_container = tk.Frame()
-	phone_container.place(x=0, y=80, width=800, height=400)
-	phone_container.place_forget()
-
-
-	#WIP Text
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(phone_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
-
-def settings_menu_init():
-	'''
-	Contains the layout information and functionality of the settings menu
-	'''
-
-	#Create a new frame to hold section content
-	global settings_container
-	settings_container = tk.Frame()
-	settings_container.place(x=0, y=80, width=800, height=400)
-	settings_container.place_forget()
-
-	#Define the WIP text
-	wipfont = tkfont.Font(size=50)
-	wiptext = tk.Label(settings_container, text="Work in progress", font=wipfont)
-	wiptext.place(x=0, y=100)
-
-def phone_menu():
-	'''
-	Switch to the phone menu
-	'''
-
-	#Disable currently selected button
-	global phone_button
-	phone_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global file_button
-	file_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global settings_container
-	settings_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show phone tab
-	global phone_container
-	phone_container.place(x=0, y=80, width=800, height=400)
-
-def settings_menu():
-	'''
-	Switch to the settings meny
-	'''
-	#Disable currently selected button
-	global settings_button
-	settings_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global file_button
-	file_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show settings tab
-	global settings_container
-	settings_container.place(x=0, y=80, width=800, height=400)
-
-def bluetooth_menu():
-	'''
-	Show the bluetooth menu
-	'''
-
-
-	#Disable the currently selected button
-	global bluetooth_button
-	bluetooth_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global file_button
-	file_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global file_container
-	file_container.place_forget()
-	global settings_contianer
-	settings_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-
-	#Show bluetooth tab
-	global bluetooth_container
-
-	bluetooth_container.place(x=0, y=80, width=800, height=400)
-
-def file_menu():
-	'''
-	Show the file player menu
-	'''
-
-	#Disable currently selected button
-	global file_button
-	file_button.config(state="disabled")
-
-	#Return other buttons to normal state
-	global bluetooth_button
-	bluetooth_button.config(state="normal")
-	global phone_button
-	phone_button.config(state="normal")
-	global settings_button
-	settings_button.config(state="normal")
-
-	#Hide other tabs
-	global settings_container
-	settings_container.place_forget()
-	global phone_container
-	phone_container.place_forget()
-	global bluetooth_container
-	bluetooth_container.place_forget()
-
-	#Show file tab
-	global file_container
-	file_container.place(x=0, y=80, width=800, height=400)
-
-
-def init_bt_device():
-	'''
-	Initialize the bluetooth device
-	'''	
-
-	global bluetooth_address_set
-	bluetooth_address_set.config(state="disabled")
-
-	global BT_DEVICE
-	BT_DEVICE = media_control.mediaControl(bluetooth_address_entry.get()) #Create the bluetooth device
-
-	global nc_container
-	nc_container.place_forget() #Hide the "not connected" information
-
-	#Start the track info thread
-	threading.Thread(target=bt_song_info_thread).start()
-
-def bt_shuffle_toggle():
-	'''
-	Toggle shuffle control
-	'''
-	global SHUFFLE_VALUE
-	global shuffle_button
-	global BT_DEVICE
-
-	if SHUFFLE_VALUE == True:
-		SHUFFLE_VALUE = False
-		shuffle_button['image'] = shuffle_icon
-		try:
-			BT_DEVICE.shuffle(False)
-		except:
-			print("Error")
-
-	elif SHUFFLE_VALUE == False:
-		SHUFFLE_VALUE = True
-		shuffle_button['image'] = shuffle_icon_on
-		try:
-			BT_DEVICE.shuffle(True)
-		except:
-			print("Error")
-
-def bt_forward():
-	'''
-	Send the forward command
-	'''
-
-	global PLAYING
-	global BT_DEVICE
-
-	if PLAYING == False:
-		#If not playing do nothing
-		pass
-	elif PLAYING == True:
-		#If playing skip the song
-		BT_DEVICE.next() #Send the next command
-
-def bt_back():
-	'''
-	Send the previous command
-	'''
-
-	global PLAYING
-	global BT_DEVICE
-
-	if PLAYING == False:
-		#If not playing do nothing
-		pass
-	elif PLAYING == True:
-		#If playing skip the song
-		BT_DEVICE.previous() #Send the next command
-
-def bt_playpause():
-	'''
-	Play and pause the music
-	'''
-	global PLAYING
-	global playpause_button
-	global BT_DEVICE
-
-	if PLAYING == True:
-		#If playing
-		PLAYING = False
-		playpause_button['image'] = play_icon #Set play button to the play icon
-		BT_DEVICE.pause() #Send the pause command
-
-	elif PLAYING == False:
-		#If paused
-		PLAYING = True
-		playpause_button['image'] = pause_icon #Set the play button to the pause icon
-		BT_DEVICE.play() #Send the play command
-
-def bt_loop():
-	'''
-	Toggle between the 3 different loop types, song, album, and off
-	'''
-	global LOOP_TYPE
-	global loop_button
-	global BT_DEVICE
-
-	if LOOP_TYPE == 0:
-		#Song
-		LOOP_TYPE = 1
-		loop_button['image'] = repeat_icon_single #repeat song
-		try:
-			BT_DEVICE.repeat(1)
-		except:
-			print("error")
-			LOOP_TYPE = 0
-
-	elif LOOP_TYPE == 1:
-		#Album
-		LOOP_TYPE = 2
-		loop_button['image'] = repeat_icon_multi #Repeat album
-		try:
-			BT_DEVICE.repeat(2)
-		except:
-			print("error")
-			LOOP_TYPE = 0
-
-	elif LOOP_TYPE == 2:
-		#Off
-		LOOP_TYPE = 0
-		loop_button['image'] = repeat_icon #Repeat off
-		try:
-			BT_DEVICE.repeat(0)
-		except:
-			print("error")
-			LOOP_TYPE = 0
-
-def bt_song_info_thread():
-	'''
-	Thread for the bluetooth song info
-	'''
-	global PLAYING
-	global BT_DEVICE
-	global track_length
-	global progress_bar
-	global playpause_button
-	global artist_name_text
-	global album_name_text
-	global track_name_text
-	global current_position
-	while True: #Always
-		while PLAYING:
-			#Only update info while playing
-
-			#Update the artist infi
-			#If it fails to obtain the info for any reason, just set the value to nothing
-			try:
-				artist_name_text['text'] = textslice(BT_DEVICE.getArtistName()) #Update the artist name
-			except:
-				artist_name_text['text'] = ""
-			try:	
-				album_name_text['text'] = textslice(BT_DEVICE.getAlbumName()) #Album Name
-			except:
-				album_name_text['text'] = ""
-			try:
-				track_name_text['text'] = textslice(BT_DEVICE.getTrackName()) #Song name
-			except:
-				track_name_text['text'] = ""
+		if self.INITSTART == False:	
+			menus = {
+				'file':[self.file_button, self.file_container], 
+				'phone': [self.phone_button, self.phone_container], 
+				'bluetooth': [self.bluetooth_button, self.bluetooth_container] , 
+				'settings': [self.settings_button, self. settings_container],
+				}
 			
-			#Detect if the device is playing music to see if it was paused from another place
-			if BT_DEVICE.isPlaying() == False:
-				#If playing
-				PLAYING = False
-				playpause_button['image'] = play_icon #Set play button to the play icon
+			selectedMenu = menus[menuName]
 			
-			#Try changing shuffle
+			if menuName.lower() in menus:
+				menus.pop(menuName)
+			elif menuName.lower() not in menus:
+				print('No such menu name')
+
+			for menu in menus:
+				menus[menu][0].config(state='normal')
+				menus[menu][1].place_forget()
+
+			selectedMenu[0].config(state='disabled')
+			selectedMenu[1].place(x=0, y=80, width=800, height=400)
+	
+	def init_bt_device(self):
+		if self.INITSTART:
+			return
+#		'''
+#		Initialize the bluetooth device
+#		'''	
+		
+#		if self.sysHost.checkForConnectedDevices():
+#			self.device.connectToPlayer() #Create the bluetooth device
+
+		#Start the track info thread
+		while self.device.playerPropertiesInterface is None:
+			time.sleep(.5)
+			if self.device.isPlaying() == True:
+				self.device.getSongInfo()
+				break
+		
+		print('starting thread')
+		threading.Thread(target=self.bt_song_info_thread).start()
+
+		self.root.update()
+
+	def bt_shuffle_toggle(self):
+		'''
+		Toggle shuffle control
+		'''
+
+		if self.SHUFFLE_VALUE == True:
+			self.SHUFFLE_VALUE = False
+			self.shuffle_button['image'] = self.shuffle_icon
 			try:
-				if BT_DEVICE.getShuffle() == False and SHUFFLE_VALUE == True: #If there's a mismatch	
-					SHUFFLE_VALUE = True
-					shuffle_button['image'] = shuffle_icon_on #Set icon to shuffle on
-				elif BT_DEVICE.getShuffle() == True and SHUFFLE_VALUE == False:
-					SHUFFLE_VALUE = False
-					shuffle_button['image'] = shuffle_icon #Set icon to shuffle off
-			except:
-				#If there's a problem, set the shuffle to off
-				SHUFFLE_VALUE = False
-				shuffle_button['image'] = shuffle_icon 
+				self.device.shuffle(False)
+			except Exception as e:
+				#print(e)
+				print("Error")
 
-			#See if the repeat mode is on
+		elif SHUFFLE_VALUE == False:
+			SHUFFLE_VALUE = True
+			self.shuffle_button['image'] = self.shuffle_icon_on
 			try:
-				if BT_DEVICE.getRepeat() == 0 and (LOOP_TYPE == 1 or LOOP_TYPE == 2):
-					LOOP_TYPE = 0
-					loop_button['image'] = repeat_icon
-				elif BT_DEVICE.getRepeat() == 1 and (LOOP_TYPE == 0 or LOOP_TYPE == 2):
-					LOOP_TYPE = 1
-					loop_button['image'] = repeat_icon_single
-				elif BT_DEVICE.getRepeat() == 2 and (LOOP_TYPE == 0 or LOOP_TYPE == 1):
-					LOOP_TYPE = 2
-					loop_button['image'] = repeat_icon_multi
-			except:
-				#If there's an error just set it to off
-				LOOP_TYPE = 0
-				loop_button['image'] = repeat_icon
+				self.device.shuffle(True)
+			except Exception as e:
+				#print(e)
+				print("Error")
 
-			#Constantly update the track length and the progress bar
+	def bt_forward(self):
+		'''
+		Send the forward command
+		'''		
+
+		if self.PLAYING == False:
+			#If not playing do nothing
+			pass
+		elif self.PLAYING == True:
+			#If playing skip the song
+			self.device.next() #Send the next command
+			
+	def bt_back(self):
+		'''
+		Send the previous command
+		'''
+		if self.PLAYING == False:
+			#If not playing do nothing
+			pass
+
+		elif self.PLAYING == True:
+			#If playing skip the song
+			self.device.previous() #Send the next command
+
+
+	def bt_playpause(self):
+		'''
+		Play and pause the music
+		'''
+		
+		if self.PLAYING == True:
+			#If playing
+			self.PLAYING = False
+			self.playpause_button['image'] = self.play_icon #Set play button to the play icon
+			self.device.pause() #Send the pause command
+
+		elif self.PLAYING == False:
+			#If paused
+			self.PLAYING = True
+			self.playpause_button['image'] = self.pause_icon #Set the play button to the pause icon
+			self.device.play() #Send the play command
+
+	def bt_loop(self):
+		'''
+		Toggle between the 3 different loop types, song, album, and off
+		'''
+
+		if self.LOOP_TYPE == 0:
+			#Song
+			self.LOOP_TYPE = 1
+			self.loop_button['image'] = self.repeat_icon_single #repeat song
 			try:
-				track_length['text'] = ms_to_timecode(BT_DEVICE.getDuration()) #Update the track length
-				current_position['text'] = ms_to_timecode(BT_DEVICE.getPosition()) #Update the current position
-				progress_bar['value'] = mapper(BT_DEVICE.getPosition(), 0, BT_DEVICE.getDuration()) #Update the progress bar
+				self.device.repeat(1)
 			except:
-				#If there's any error, just set everything to 0
-				track_length['text'] = "0:00"
-				current_position['text'] = "0:00"
-				progress_bar['value'] = 0
+				print("error")
+				self.LOOP_TYPE = 0
 
-			time.sleep(0.1) #Sleep to prevent the thread from taking all CPU time
+		elif self.LOOP_TYPE == 1:
+			#Album
+			self.LOOP_TYPE = 2
+			self.loop_button['image'] = self.repeat_icon_multi #Repeat album
+			try:
+				self.device.repeat(2)
+			except:
+				print("error")
+				self.LOOP_TYPE = 0
 
-		#Wait for the device to keep playing
-		if BT_DEVICE.isPlaying() == True:
-			PLAYING = True
-			playpause_button['image'] = pause_icon
-		time.sleep(0.01) #Sleep to prevent the thread from taking all CPU time
+		elif self.LOOP_TYPE == 2:
+			#Off
+			self.LOOP_TYPE = 0
+			self.loop_button['image'] = self.repeat_icon #Repeat off
+			try:
+				self.device.repeat(0)
+			except:
+				print("error")
+				self.LOOP_TYPE = 0
 
-def mapper(in_value, minimum, maximum):
-	'''
-	Map a value to a percentage between 1 and 100
-	Take an input value, the minimum possible value, and the maximum possible value
-	'''
-	in_range = maximum - minimum #Get the range
-	value = in_value - minimum
-	out_value = (float(in_value)/in_range)*100 #Map the value
-	return out_value+minimum
+	def bt_song_info_thread(self):
+		'''
+		Thread for the bluetooth song info
+		'''
 
-def ms_to_timecode(ms):
-	'''
-	Converts miliseconds to a time code MM:SS
-	Returns a string containing the time code
-	'''
-	secs = int((ms/1000) % 60)
-	if secs < 10:
-		secs = "0{}".format(secs)
-	mins = int((ms/1000) / 60)
+		while True: #Always
+			while self.PLAYING:
+				#Only update info while playing
 
-	return "{}:{}".format(mins,secs)
+				#Update the artist infi
+				#If it fails to obtain the info for any reason, just set the value to nothing
+				try:
+					self.device.getSongInfo()
+				except:
+					pass
+				
+				try:
+					newArtistName = self.textslice(self.device.getArtistName())
+					if (self.artistNameText['text'] != newArtistName) or (newArtistName == ''):
+						self.artistNameText['text'] = newArtistName #Update the artist name
+				except Exception as e:
+					pass
+					##print(e)
+					#self.artistNameText['text'] = ""
+				try:	
+					newAlbumName = self.textslice(self.device.getAlbumName())
+					if self.albumNameText['text'] != newAlbumName or newAlbumName == '':					
+						self.albumNameText['text'] = newAlbumName #Album Name
+				except Exception as e:
+					pass
+					##print(e)
+					#self.artistNameText['text'] = ""
+				try:
+					newTrackName = self.textslice(self.device.getTrackName())
+					if self.trackNameText['text'] != newTrackName or newAlbumName == '':
+						self.trackNameText['text'] = newTrackName
 
-def textslice(text):
-	'''
-	Slice text that is too long to be displayed on the screen
-	Takes input text
-	Returns output text that is sliced
-	'''
-	if len(text) >= 24:
-		return "{}...".format(text[:24])
-	else:
-		return text
+					 #Song name
+				except Exception as e:
+					pass
+					##print(e)
+					#self.trackNameText['text'] = ""
+				
+				#Detect if the device is playing music to see if it was paused from another place
+				if self.device.isPlaying() == False:
+					#If playing
+					self.PLAYING = False
+					self.playpause_button['image'] = self.play_icon #Set play button to the play icon
+				
+				#Try changing shuffle
+				try:
+					if self.device.getShuffle() == False and self.SHUFFLE_VALUE == True: #If there's a mismatch	
+						self.SHUFFLE_VALUE = True
+						self.shuffle_button['image'] = self.shuffle_icon_on #Set icon to shuffle on
+					elif self.device.getShuffle() == True and self.SHUFFLE_VALUE == False:
+						self.SHUFFLE_VALUE = False
+						self.shuffle_button['image'] = self.shuffle_icon #Set icon to shuffle off
+				except Exception as e:
+					#print(e)
+					#If there's a problem, set the shuffle to off
+					self.SHUFFLE_VALUE = False
+					self.shuffle_button['image'] = self.shuffle_icon 
 
-def main():
+				#See if the repeat mode is on
+				try:
+					if self.device.getRepeat() == 0 and (self.LOOP_TYPE == 1 or self.LOOP_TYPE == 2):
+						self.LOOP_TYPE = 0
+						self.loop_button['image'] = self.repeat_icon
+					elif self.device.getRepeat() == 1 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 2):
+						self.LOOP_TYPE = 1
+						self.loop_button['image'] = self.repeat_icon_single
+					elif self.device.getRepeat() == 2 and (self.LOOP_TYPE == 0 or self.LOOP_TYPE == 1):
+						self.LOOP_TYPE = 2
+						self.loop_button['image'] = self.repeat_icon_multi
+				except Exception as e:
+					#print(e)
+					#If there's an error just set it to off
+					self.LOOP_TYPE = 0
+					self.loop_button['image'] = self.repeat_icon
 
-	menu_bar() #Start menu bar
+				#Constantly update the track length and the progress bar
+				try:
+					self.track_length['text'] = self.ms_to_timecode(self.device.getDuration()) #Update the track length
+					self.current_position['text'] = self.ms_to_timecode(self.device.getPosition()) #Update the current position
+					self.progress_bar['value'] = self.mapper(self.device.getPosition(), 0, self.device.getDuration()) #Update the progress bar
+				except Exception as e:
+					#print(e)
+					#If there's any error, just set everything to 0
+					self.track_length['text'] = "0:00"
+					self.current_position['text'] = "0:00"
+					self.progress_bar['value'] = 0
+
+				time.sleep(0.1) #Sleep to prevent the thread from taking all CPU time
+
+			#Wait for the device to keep playing
+			if self.device.isPlaying() == True:
+				self.PLAYING = True
+				self.playpause_button['image'] = self.pause_icon
+			time.sleep(0.01) #Sleep to prevent the thread from taking all CPU time
 
 
-	#Initialize menus	
-	phone_menu_init()
-	settings_menu_init()
-	file_menu_init()
-	bluetooth_menu_init()
+	def mapper(self, in_value, minimum, maximum):
+		'''
+		Map a value to a percentage between 1 and 100
+		Take an input value, the minimum possible value, and the maximum possible value
+		'''
+		in_range = maximum - minimum #Get the range
+		out_value = (float(in_value)/in_range)*100 #Map the value
+		return out_value+minimum
 
+	def ms_to_timecode(self, ms):
+		'''
+		Converts miliseconds to a time code MM:SS
+		Returns a string containing the time code
+		'''
+		secs = int((ms/1000) % 60)
+		if secs < 10:
+			secs = "0{}".format(secs)
+		mins = int((ms/1000) / 60)
 
-	#Find which tab to start on
-	if CONFIG.DEFAULT_TAB == 1: #File menu
-		file_menu()
+		return "{}:{}".format(mins,secs)
 
-	elif CONFIG.DEFAULT_TAB == 2: #Bluetooth menu
-		bluetooth_menu()
-
-	elif CONFIG.DEFAULT_TAB == 3: #Phone menu
-		phone_menu()
-
-	elif CONFIG.DEFAULT_TAB == 4: #Settings menu
-		settings_menu()
-
-	#Begin displaying the window	
-	root.mainloop()
-
-if __name__ == "__main__":
-	main()
+	def textslice(self, text):
+		'''
+		Slice text that is too long to be displayed on the screen
+		Takes input text
+		Returns output text that is sliced
+		'''
+		if len(text) >= 24:
+			return "{}...".format(text[:24])
+		else:
+			return text

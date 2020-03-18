@@ -49,9 +49,6 @@ class mediaControl:
 		return dbusDevice
 
 
-		'''
-		Music control functions do not return anything
-		'''
 	def pause(self):
 		'''
 		Pause the music
