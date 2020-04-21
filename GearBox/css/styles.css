@@ -19,6 +19,18 @@ footer{
   height: 100;
   margin: 5;
 }
+.play-pause{
+  height: 100;
+  text-align: center;
+}
+.playback-icon{
+  height: 75;
+  margin: 5;
+}
+.home-icon{
+  height: 150;
+  text-align: center;
+}
 .txt{
   color: white;
   font-size: 60;
