@@ -1,6 +1,6 @@
 Flask==3.0.0
 flask-socketio==5.3.5
 flask-cors==4.0.0
-python-socketio==5.10.0
+python-socketio==5.14.0
 eventlet==0.33.3
 pyopenssl==23.3.0
