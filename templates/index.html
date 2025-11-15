@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarPlay Dongle Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 CarPlay Dongle Manager</h1>
+            <div id="connection-status" class="status disconnected">
+                <span class="status-dot"></span>
+                <span class="status-text">Server Disconnected</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Dongle Detection Section -->
+            <section class="card">
+                <h2>USB Dongle Detection</h2>
+                <div id="dongle-status" class="status-box">
+                    <p>No dongle detected</p>
+                </div>
+                <button id="detect-btn" class="btn btn-primary">Detect Carlinkit Dongle</button>
+            </section>
+
+            <!-- Device Information Section -->
+            <section class="card" id="device-info-section" style="display: none;">
+                <h2>Device Information</h2>
+                <div id="device-info" class="info-box">
+                    <!-- Device details will be populated here -->
+                </div>
+                <button id="disconnect-btn" class="btn btn-danger">Disconnect</button>
+            </section>
+
+            <!-- Communication Section -->
+            <section class="card" id="communication-section" style="display: none;">
+                <h2>Send Commands</h2>
+                <div class="command-controls">
+                    <button class="btn btn-secondary" data-command="status">Get Status</button>
+                    <button class="btn btn-secondary" data-command="home">Home</button>
+                    <button class="btn btn-secondary" data-command="back">Back</button>
+                </div>
+            </section>
+
+            <!-- Log Section -->
+            <section class="card">
+                <h2>Activity Log</h2>
+                <div id="log" class="log-box">
+                    <p class="log-entry">Waiting for connection...</p>
+                </div>
+                <button id="clear-log-btn" class="btn btn-secondary btn-sm">Clear Log</button>
+            </section>
+        </main>
+    </div>
+
+    <!-- Include Socket.IO from CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Include our custom scripts -->
+    <script src="{{ url_for('static', filename='js/socket-handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/usb-handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
