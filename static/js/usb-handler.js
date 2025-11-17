@@ -1,6 +1,6 @@
 /**
  * USB Handler for Carlinkit Dongle Communication
- * Handles WebUSB API interactions
+ * Handles WebUSB API interactions with automatic detection
  */
 
 class USBHandler {
@@ -14,9 +14,6 @@ class USBHandler {
         this.endpointIn = null;
         this.endpointOut = null;
         this.isConnected = false;
-        
-        // Setup USB connection/disconnection listeners
-        this.setupUSBListeners();
     }
 
     /**
@@ -24,26 +21,6 @@ class USBHandler {
      */
     isWebUSBSupported() {
         return 'usb' in navigator;
-    }
-
-    /**
-     * Setup listeners for USB device connection/disconnection
-     */
-    setupUSBListeners() {
-        if (!this.isWebUSBSupported()) {
-            console.warn('WebUSB not supported in this browser');
-            return;
-        }
-
-        navigator.usb.addEventListener('connect', (event) => {
-            console.log('USB device connected:', event.device);
-            this.handleDeviceConnected(event.device);
-        });
-
-        navigator.usb.addEventListener('disconnect', (event) => {
-            console.log('USB device disconnected:', event.device);
-            this.handleDeviceDisconnected(event.device);
-        });
     }
 
     /**
@@ -63,7 +40,7 @@ class USBHandler {
                 ]
             });
 
-            await this.connect(device);
+            await this.connectToDevice(device);
             return device;
         } catch (error) {
             console.error('Error requesting USB device:', error);
@@ -87,7 +64,7 @@ class USBHandler {
             );
 
             if (carlinkit) {
-                await this.connect(carlinkit);
+                await this.connectToDevice(carlinkit);
             }
 
             return carlinkit;
@@ -98,9 +75,9 @@ class USBHandler {
     }
 
     /**
-     * Connect to a USB device
+     * Connect to a specific USB device
      */
-    async connect(device) {
+    async connectToDevice(device) {
         try {
             this.device = device;
 
@@ -134,12 +111,19 @@ class USBHandler {
             console.log('USB device connected successfully');
             console.log('Endpoint IN:', this.endpointIn, 'Endpoint OUT:', this.endpointOut);
 
+            // Dispatch connection event
+            window.dispatchEvent(new CustomEvent('carlinkit-connected', {
+                detail: { device: this.device }
+            }));
+
             // Start reading data
             this.startReading();
 
             return device;
         } catch (error) {
             console.error('Error connecting to device:', error);
+            this.device = null;
+            this.isConnected = false;
             throw error;
         }
     }
@@ -153,6 +137,10 @@ class USBHandler {
                 await this.device.releaseInterface(this.interfaceNumber);
                 await this.device.close();
                 this.isConnected = false;
+                
+                // Dispatch disconnection event
+                window.dispatchEvent(new CustomEvent('carlinkit-disconnected'));
+                
                 this.device = null;
                 console.log('Device disconnected');
             } catch (error) {
@@ -215,40 +203,10 @@ class USBHandler {
     handleDataReceived(data) {
         console.log('Data received from device:', data);
         
-        // Convert to array for easier handling
-        const dataArray = new Uint8Array(data.buffer);
-        
-        // Notify via custom event
+        // Dispatch custom event with the received data
         window.dispatchEvent(new CustomEvent('usb-data-received', {
-            detail: { data: dataArray }
+            detail: { data: data }
         }));
-    }
-
-    /**
-     * Handle device connected event
-     */
-    handleDeviceConnected(device) {
-        if (device.vendorId === this.VENDOR_ID && 
-            this.PRODUCT_IDS.includes(device.productId)) {
-            
-            window.dispatchEvent(new CustomEvent('carlinkit-connected', {
-                detail: { device }
-            }));
-        }
-    }
-
-    /**
-     * Handle device disconnected event
-     */
-    handleDeviceDisconnected(device) {
-        if (this.device && device.serialNumber === this.device.serialNumber) {
-            this.isConnected = false;
-            this.device = null;
-            
-            window.dispatchEvent(new CustomEvent('carlinkit-disconnected', {
-                detail: { device }
-            }));
-        }
     }
 
     /**
@@ -262,13 +220,12 @@ class USBHandler {
         return {
             vendorId: this.device.vendorId,
             productId: this.device.productId,
-            serialNumber: this.device.serialNumber,
             manufacturerName: this.device.manufacturerName,
             productName: this.device.productName,
-            isConnected: this.isConnected
+            serialNumber: this.device.serialNumber
         };
     }
 }
 
 // Create global instance
-window.usbHandler = new USBHandler();
+const usbHandler = new USBHandler();

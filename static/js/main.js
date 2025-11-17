@@ -1,6 +1,6 @@
 /**
  * Main Application Logic
- * Coordinates USB and Socket handlers
+ * Coordinates USB and Socket handlers with automatic dongle detection
  */
 
 // DOM elements
@@ -41,11 +41,85 @@ window.addEventListener('DOMContentLoaded', () => {
     // Listen for Socket events
     setupSocketEventListeners();
 
-    // Check for already connected devices
-    checkExistingDevice();
+    // Automatically detect and connect to dongle on startup
+    autoDetectDongle();
 
     addLog('Application initialized');
 });
+
+/**
+ * Automatically detect and connect to dongle on startup
+ */
+async function autoDetectDongle() {
+    if (!usbHandler.isWebUSBSupported()) {
+        addLog('WebUSB not supported in this browser', 'warning');
+        return;
+    }
+
+    try {
+        addLog('Checking for Carlinkit dongle...');
+        
+        // Try to find and connect to an existing paired device
+        const device = await usbHandler.findDevice();
+        
+        if (device) {
+            addLog('Found paired Carlinkit dongle, connecting automatically...', 'success');
+            updateDongleStatus(true);
+            displayDeviceInfo(usbHandler.getDeviceInfo());
+            socketHandler.emitDongleConnected(usbHandler.getDeviceInfo());
+        } else {
+            addLog('No paired dongle found. Please click "Detect Carlinkit Dongle" to pair a new device.');
+        }
+    } catch (error) {
+        console.error('Error during auto-detection:', error);
+        addLog('Auto-detection failed. Use manual detection button.', 'warning');
+    }
+
+    // Listen for USB device connection/disconnection events
+    if (navigator.usb) {
+        navigator.usb.addEventListener('connect', handleUSBConnect);
+        navigator.usb.addEventListener('disconnect', handleUSBDisconnect);
+        addLog('USB event listeners registered');
+    }
+}
+
+/**
+ * Handle USB device connection event
+ */
+async function handleUSBConnect(event) {
+    const device = event.device;
+    
+    // Check if it's a Carlinkit device
+    if (device.vendorId === 0x1314 && 
+        (device.productId === 0x1520 || device.productId === 0x1521)) {
+        addLog('Carlinkit dongle plugged in, connecting automatically...', 'success');
+        
+        try {
+            await usbHandler.connectToDevice(device);
+            updateDongleStatus(true);
+            displayDeviceInfo(usbHandler.getDeviceInfo());
+            socketHandler.emitDongleConnected(usbHandler.getDeviceInfo());
+        } catch (error) {
+            addLog(`Auto-connect failed: ${error.message}`, 'error');
+        }
+    }
+}
+
+/**
+ * Handle USB device disconnection event
+ */
+function handleUSBDisconnect(event) {
+    const device = event.device;
+    
+    // Check if it's our Carlinkit device
+    if (device === usbHandler.device) {
+        addLog('Carlinkit dongle unplugged', 'warning');
+        updateDongleStatus(false);
+        socketHandler.emitDongleDisconnected();
+        usbHandler.device = null;
+        usbHandler.isConnected = false;
+    }
+}
 
 /**
  * Setup USB event listeners
@@ -100,7 +174,7 @@ function setupSocketEventListeners() {
 }
 
 /**
- * Handle detect button click
+ * Handle detect button click (manual detection)
  */
 async function handleDetectClick() {
     if (!usbHandler.isWebUSBSupported()) {
@@ -169,23 +243,6 @@ async function sendCommandToDongle(command) {
     
     await usbHandler.sendData(data);
     addLog(`Sent command to dongle: ${command}`, 'success');
-}
-
-/**
- * Check for existing device on page load
- */
-async function checkExistingDevice() {
-    try {
-        const device = await usbHandler.findDevice();
-        if (device) {
-            addLog('Found existing paired device', 'success');
-            updateDongleStatus(true);
-            displayDeviceInfo(usbHandler.getDeviceInfo());
-            socketHandler.emitDongleConnected(usbHandler.getDeviceInfo());
-        }
-    } catch (error) {
-        console.error('Error checking for existing device:', error);
-    }
 }
 
 /**
