@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CarPlay Dongle Detection</title>
+    <title>CarPlay Dongle Manager</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -35,6 +35,22 @@
                 <button id="disconnect-btn" class="btn btn-danger">Disconnect</button>
             </section>
 
+            <!-- CarPlay Video Display Section -->
+            <section class="card" id="carplay-section" style="display: none;">
+                <h2>CarPlay Display</h2>
+                <div class="video-container">
+                    <video id="carplay-video" 
+                           controls 
+                           autoplay 
+                           style="width: 100%; max-width: 1280px; background: #000;">
+                    </video>
+                </div>
+                <div class="carplay-controls">
+                    <button id="start-carplay-btn" class="btn btn-success">Start CarPlay</button>
+                    <button id="stop-carplay-btn" class="btn btn-danger" style="display: none;">Stop CarPlay</button>
+                </div>
+            </section>
+
             <!-- Communication Section -->
             <section class="card" id="communication-section" style="display: none;">
                 <h2>Send Commands</h2>
@@ -42,6 +58,7 @@
                     <button class="btn btn-secondary" data-command="status">Get Status</button>
                     <button class="btn btn-secondary" data-command="home">Home</button>
                     <button class="btn btn-secondary" data-command="back">Back</button>
+                    <button class="btn btn-secondary" data-command="frame">Request Frame</button>
                 </div>
             </section>
 
@@ -59,9 +76,13 @@
     <!-- Include Socket.IO from CDN -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
+    <!-- Include jMuxer for H.264 video playback -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jmuxer@2.0.3/dist/jmuxer.min.js"></script>
+    
     <!-- Include our custom scripts -->
     <script src="{{ url_for('static', filename='js/socket-handler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/usb-handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/carplay-video-handler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

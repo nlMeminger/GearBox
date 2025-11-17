@@ -1,0 +1,32 @@
+/* CarPlay Video Section Styles */
+.video-container {
+    margin: 20px 0;
+    text-align: center;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#carplay-video {
+    display: block;
+    width: 100%;
+    max-width: 1280px;
+    height: auto;
+    margin: 0 auto;
+}
+
+.carplay-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+/* Add to existing button styles */
+.btn-success {
+    background-color: #28a745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
